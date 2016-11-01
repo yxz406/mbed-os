@@ -15,19 +15,19 @@
  *  - Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *  - Neither the name of ARM  nor the names of its contributors may be used
- *    to endorse or promote products derived from this software without
+ *  - Neither the name of ARM  nor the names of its contributors may be used 
+ *    to endorse or promote products derived from this software without 
  *    specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDERS AND CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *---------------------------------------------------------------------------*/
@@ -40,7 +40,6 @@
 #include "rt_MemBox.h"
 #include "rt_Robin.h"
 #include "rt_HAL_CM.h"
-#include "rt_OsEventObserver.h"
 
 /*----------------------------------------------------------------------------
  *      Global Variables
@@ -100,11 +99,8 @@ static void rt_init_context (P_TCB p_TCB, U8 priority, FUNCP task_body) {
 
 void rt_switch_req (P_TCB p_new) {
   /* Switch to next task (identified by "p_new"). */
-  os_tsk.new_tsk   = p_new;
+  os_tsk.new   = p_new;
   p_new->state = RUNNING;
-  if (osEventObs && osEventObs->thread_switch) {
-    osEventObs->thread_switch(p_new->context);
-  }
   DBG_TASK_SWITCH(p_new->task_id);
 }
 
@@ -237,21 +233,19 @@ OS_TID rt_tsk_create (FUNCP task, U32 prio_stksz, void *stk, void *argv) {
   }
   /* If "size != 0" use a private user provided stack. */
   task_context->stack      = stk;
-  task_context->priv_stack = prio_stksz >> 8;
+  task_context->priv_stack = (U16)(prio_stksz >> 8);
+  /* Pass parameter 'argv' to 'rt_init_context' */
+  task_context->msg = argv;
+  /* For 'size == 0' system allocates the user stack from the memory pool. */
+  rt_init_context (task_context, (U8)(prio_stksz & 0xFFU), task);
 
   /* Find a free entry in 'os_active_TCB' table. */
   i = rt_get_TID ();
   if (i == 0U) {
     return (0U);
   }
-  task_context->task_id = (U8)i;
-  /* Pass parameter 'argv' to 'rt_init_context' */
-  task_context->msg = argv;
-  task_context->argv = argv;
-  /* For 'size == 0' system allocates the user stack from the memory pool. */
-  rt_init_context (task_context, (U8)(prio_stksz & 0xFFU), task);
-
   os_active_TCB[i-1U] = task_context;
+  task_context->task_id = (U8)i;
   DBG_TASK_NOTIFY(task_context, __TRUE);
   rt_dispatch (task_context);
   return ((OS_TID)i);
@@ -406,10 +400,6 @@ void rt_sys_init (FUNCP first_task, U32 prio_stksz, void *stk) {
 #endif
   os_tsk.run = &os_idle_TCB;
   os_tsk.run->state = RUNNING;
-
-  /* Set the current thread to idle, so that on exit from this SVCall we do not
-   * de-reference a NULL TCB. */
-  rt_switch_req(&os_idle_TCB);
 
   /* Initialize ps queue */
   os_psq->first = 0U;

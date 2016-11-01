@@ -1,6 +1,3 @@
-
-/** \addtogroup rtos */
-/** @{*/
 /*----------------------------------------------------------------------------
  *      CMSIS-RTOS  -  RTX
  *----------------------------------------------------------------------------
@@ -18,19 +15,19 @@
  *  - Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *  - Neither the name of ARM  nor the names of its contributors may be used
- *    to endorse or promote products derived from this software without
+ *  - Neither the name of ARM  nor the names of its contributors may be used 
+ *    to endorse or promote products derived from this software without 
  *    specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDERS AND CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *---------------------------------------------------------------------------*/
@@ -50,32 +47,19 @@
  #undef  __USE_EXCLUSIVE_ACCESS
 #endif
 
-/* Supress __ldrex and __strex deprecated warnings - "#3731-D: intrinsic is deprecated" */
-#ifdef __USE_EXCLUSIVE_ACCESS
-#pragma diag_suppress 3731
-#endif
-
 #ifndef __CMSIS_GENERIC
-
-__attribute__((always_inline)) static inline U32 __get_PRIMASK(void)
-{
-    register U32 primask __asm("primask");
-    return primask;
-}
-
 #define __DMB() do {\
                    __schedule_barrier();\
                    __dmb(0xF);\
                    __schedule_barrier();\
                 } while (0)
-
 #endif
 
 #elif defined (__GNUC__)        /* GNU Compiler */
 
 #undef  __USE_EXCLUSIVE_ACCESS
 
-#if defined (__CORTEX_M0) || defined (__CORTEX_M0PLUS)
+#if defined (__CORTEX_M0)
 #define __TARGET_ARCH_6S_M
 #endif
 
@@ -87,14 +71,6 @@ __attribute__((always_inline)) static inline U32 __get_PRIMASK(void)
 #define __weak   __attribute__((weak))
 
 #ifndef __CMSIS_GENERIC
-
-__attribute__((always_inline)) static inline U32 __get_PRIMASK(void)
-{
-  U32 result;
-
-  __asm volatile ("mrs %0, primask" : "=r" (result));
-  return result;
-}
 
 __attribute__((always_inline)) static inline void __enable_irq(void)
 {
@@ -120,7 +96,7 @@ __attribute__((always_inline)) static inline void __DMB(void)
 __attribute__(( always_inline)) static inline U8 __clz(U32 value)
 {
   U8 result;
-
+  
   __asm volatile ("clz %0, %1" : "=r" (result) : "r" (value));
   return(result);
 }
@@ -140,14 +116,6 @@ __attribute__(( always_inline)) static inline U8 __clz(U32 value)
 #define __inline inline
 
 #ifndef __CMSIS_GENERIC
-
-static inline U32 __get_PRIMASK(void)
-{
-  U32 result;
-  
-  __asm volatile ("mrs %0, primask" : "=r" (result));
-  return result;
-}
 
 static inline void __enable_irq(void)
 {
@@ -230,22 +198,8 @@ extern BIT dbg_msg;
  #define rt_inc(p)     while(__strex((__ldrex(p)+1U),p))
  #define rt_dec(p)     while(__strex((__ldrex(p)-1U),p))
 #else
- #define rt_inc(p) do {\
-                     U32 primask = __get_PRIMASK();\
-                     __disable_irq();\
-                     (*p)++;\
-                     if (!primask) {\
-                       __enable_irq();\
-                     }\
-                   } while (0)
- #define rt_dec(p) do {\
-                     U32 primask = __get_PRIMASK();\
-                     __disable_irq();\
-                     (*p)--;\
-                     if (!primask) {\
-                       __enable_irq();\
-                     }\
-                   } while (0)
+ #define rt_inc(p)     __disable_irq();(*p)++;__enable_irq();
+ #define rt_dec(p)     __disable_irq();(*p)--;__enable_irq();
 #endif
 
 __inline static U32 rt_inc_qi (U32 size, U8 *count, U8 *first) {
@@ -261,7 +215,6 @@ __inline static U32 rt_inc_qi (U32 size, U8 *count, U8 *first) {
     if (c2 == size) { c2 = 0U; }
   } while (__strex(c2, first));
 #else
-  U32 primask = __get_PRIMASK();
   __disable_irq();
   if ((cnt = *count) < size) {
     *count = (U8)(cnt+1U);
@@ -269,9 +222,7 @@ __inline static U32 rt_inc_qi (U32 size, U8 *count, U8 *first) {
     if (c2 == size) { c2 = 0U; }
     *first = (U8)c2; 
   }
-  if (!primask) {
-    __enable_irq ();
-  }
+  __enable_irq ();
 #endif
   return (cnt);
 }
@@ -304,11 +255,7 @@ __inline static void rt_svc_init (void) {
   if (prigroup >= sh) {
     sh = prigroup + 1U;
   }
-
-/* Only change the SVCall priority if uVisor is not present. */
-#if !(defined(FEATURE_UVISOR) && defined(TARGET_UVISOR_SUPPORTED))
   NVIC_SYS_PRI2 = ((0xFEFFFFFFU << sh) & 0xFF000000U) | (NVIC_SYS_PRI2 & 0x00FFFFFFU);
-#endif /* !(defined(FEATURE_UVISOR) && defined(TARGET_UVISOR_SUPPORTED)) */
 #endif
 }
 
@@ -329,7 +276,7 @@ extern void dbg_task_switch (U32 task_id);
 #ifdef DBG_MSG
 #define DBG_INIT() dbg_init()
 #define DBG_TASK_NOTIFY(p_tcb,create) if (dbg_msg) dbg_task_notify(p_tcb,create)
-#define DBG_TASK_SWITCH(task_id)      if (dbg_msg && (os_tsk.new_tsk!=os_tsk.run)) \
+#define DBG_TASK_SWITCH(task_id)      if (dbg_msg && (os_tsk.new!=os_tsk.run)) \
                                         dbg_task_switch(task_id)
 #else
 #define DBG_INIT()
@@ -340,5 +287,3 @@ extern void dbg_task_switch (U32 task_id);
 /*----------------------------------------------------------------------------
  * end of file
  *---------------------------------------------------------------------------*/
-
-/** @}*/

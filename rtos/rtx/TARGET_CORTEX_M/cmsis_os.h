@@ -1,6 +1,3 @@
-
-/** \addtogroup rtos */
-/** @{*/
 /* ----------------------------------------------------------------------
  * $Date:        5. February 2013
  * $Revision:    V1.02
@@ -57,45 +54,11 @@
 #ifndef _CMSIS_OS_H
 #define _CMSIS_OS_H
 
-#define CMSIS_OS_RTX
-
-// __MBED_CMSIS_RTOS_CM captures our changes to the RTX kernel
-#ifndef __MBED_CMSIS_RTOS_CM
-#define __MBED_CMSIS_RTOS_CM
-#endif
-// we use __CMSIS_RTOS version, which changes some API in the kernel
-#ifndef __CMSIS_RTOS
-#define __CMSIS_RTOS
-#endif
-
-// The stack space occupied is mainly dependent on the underling C standard library
-#if defined(TOOLCHAIN_GCC) || defined(TOOLCHAIN_ARM_STD) || defined(TOOLCHAIN_IAR)
-#    define WORDS_STACK_SIZE   512
-#elif defined(TOOLCHAIN_ARM_MICRO)
-#    define WORDS_STACK_SIZE   128
-#endif
-
-#ifdef __MBED_CMSIS_RTOS_CM
-
-/* Single thread - disable timers and set task count to one */
-#if defined(MBED_RTOS_SINGLE_THREAD)
-#define OS_TASKCNT  1
-#define OS_TIMERS   0
-#endif
-
-#endif
-
-#if defined(TARGET_XDOT_L151CC)
-#define DEFAULT_STACK_SIZE         (WORDS_STACK_SIZE/2)
-#else
-#define DEFAULT_STACK_SIZE         (WORDS_STACK_SIZE*4)
-#endif
-
 #define osCMSIS           0x10002U     ///< CMSIS-RTOS API version (main [31:16] .sub [15:0])
 
-#define osCMSIS_RTX     ((4<<16)|80)   ///< RTOS identification and version (main [31:16] .sub [15:0])
+#define osCMSIS_RTX     ((4<<16)|81)   ///< RTOS identification and version (main [31:16] .sub [15:0])
 
-#define osKernelSystemId "RTX V4.80"   ///< RTOS identification string
+#define osKernelSystemId "RTX V4.81"   ///< RTOS identification string
 
 
 #define osFeature_MainThread   1       ///< main can be thread
@@ -106,14 +69,23 @@
 #define osFeature_Semaphore    65535   ///< Maximum count for \ref osSemaphoreCreate function
 #define osFeature_Wait         0       ///< osWait not available
 #define osFeature_SysTick      1       ///< osKernelSysTick functions available
-#define osFeature_ThreadEnum   1       ///< Thread enumeration available
 
-#if defined (__CC_ARM)
-#define os_InRegs __value_in_regs      // Compiler specific: force struct in registers
-#elif defined (__ICCARM__)
+#if defined(__CC_ARM)
 #define os_InRegs __value_in_regs      // Compiler specific: force struct in registers
 #else
 #define os_InRegs
+#endif
+
+#if   defined(__CC_ARM)
+#define __NO_RETURN __declspec(noreturn)
+#elif defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
+#define __NO_RETURN __attribute__((noreturn))
+#elif defined(__GNUC__)
+#define __NO_RETURN __attribute__((noreturn))
+#elif defined(__ICCARM__)
+#define __NO_RETURN __noreturn
+#else
+#define __NO_RETURN
 #endif
 
 #include <stdint.h>
@@ -123,6 +95,7 @@
 extern "C"
 {
 #endif
+
 
 // ==== Enumeration, structures, defines ====
 
@@ -135,7 +108,8 @@ typedef enum  {
   osPriorityAboveNormal   = +1,          ///< priority: above normal
   osPriorityHigh          = +2,          ///< priority: high
   osPriorityRealtime      = +3,          ///< priority: realtime (highest)
-  osPriorityError         =  0x84        ///< system cannot determine priority or thread has illegal priority
+  osPriorityError         =  0x84,       ///< system cannot determine priority or thread has illegal priority
+  os_priority_reserved    =  0x7FFFFFFF  ///< prevent from enum down-size compiler optimization.
 } osPriority;
 
 /// Timeout value.
@@ -167,16 +141,6 @@ typedef enum  {
   osTimerPeriodic         =     1        ///< repeating timer
 } os_timer_type;
 
-typedef enum {
-  osThreadInfoState,
-  osThreadInfoStackSize,
-  osThreadInfoStackMax,
-  osThreadInfoEntry,
-  osThreadInfoArg,
-
-  osThreadInfo_reserved   =  0x7FFFFFFF  ///< prevent from enum down-size compiler optimization.
-} osThreadInfo;
-
 /// Entry point of a thread.
 typedef void (*os_pthread) (void const *argument);
 
@@ -206,8 +170,6 @@ typedef struct os_messageQ_cb *osMessageQId;
 /// Mail ID identifies the mail queue (pointer to a mail queue control block).
 typedef struct os_mailQ_cb *osMailQId;
 
-/// Thread enumeration ID identifies the enumeration (pointer to a thread enumeration control block).
-typedef uint32_t *osThreadEnumId;
 
 /// Thread Definition structure contains startup information of a thread.
 typedef struct os_thread_def  {
@@ -215,9 +177,6 @@ typedef struct os_thread_def  {
   osPriority             tpriority;    ///< initial thread priority
   uint32_t               instances;    ///< maximum number of instances of that thread function
   uint32_t               stacksize;    ///< stack size requirements in bytes; 0 is default stack size
-#ifdef __MBED_CMSIS_RTOS_CM
-  uint32_t               *stack_pointer;  ///< pointer to the stack memory block
-#endif
 } osThreadDef_t;
 
 /// Timer Definition structure contains timer parameters.
@@ -323,16 +282,9 @@ uint32_t osKernelSysTick (void);
 #define osThreadDef(name, priority, instances, stacksz)  \
 extern const osThreadDef_t os_thread_def_##name
 #else                            // define the object
-#ifdef __MBED_CMSIS_RTOS_CM
-#define osThreadDef(name, priority, stacksz)  \
-uint32_t os_thread_def_stack_##name [stacksz / sizeof(uint32_t)]; \
-const osThreadDef_t os_thread_def_##name = \
-{ (name), (priority), 1, (stacksz), (os_thread_def_stack_##name) }
-#else
 #define osThreadDef(name, priority, instances, stacksz)  \
 const osThreadDef_t os_thread_def_##name = \
 { (name), (priority), (instances), (stacksz)  }
-#endif
 #endif
 
 /// Access a Thread definition.
@@ -346,8 +298,6 @@ const osThreadDef_t os_thread_def_##name = \
 /// \param[in]     argument      pointer that is passed to the thread function as start argument.
 /// \return thread ID for reference by other functions or NULL in case of error.
 osThreadId osThreadCreate (const osThreadDef_t *thread_def, void *argument);
-
-osThreadId osThreadContextCreate (const osThreadDef_t *thread_def, void *argument, void *context);
 
 /// Return the thread ID of the current running thread.
 /// \return thread ID for reference by other functions or NULL in case of error.
@@ -373,17 +323,6 @@ osStatus osThreadSetPriority (osThreadId thread_id, osPriority priority);
 /// \return current priority value of the thread function.
 osPriority osThreadGetPriority (osThreadId thread_id);
 
-#ifdef __MBED_CMSIS_RTOS_CM
-/// Get current thread state.
-uint8_t osThreadGetState (osThreadId thread_id);
-#endif
-
-/// Get into from an active thread.
-/// \param[in]     thread_id     thread ID obtained by \ref osThreadCreate or \ref osThreadGetId.
-/// \param[in]     info          information to read.
-/// \return current state of the thread function.
-/// \return requested info that includes the status code.
-os_InRegs osEvent _osThreadGetInfo(osThreadId thread_id, osThreadInfo info);
 
 //  ==== Generic Wait Functions ====
 
@@ -463,7 +402,12 @@ int32_t osSignalClear (osThreadId thread_id, int32_t signals);
 /// \param[in]     signals       wait until all specified signal flags set or 0 for any single signal flag.
 /// \param[in]     millisec      \ref CMSIS_RTOS_TimeOutValue or 0 in case of no time-out.
 /// \return event flag information or error code.
+#if defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
+#define   osSignalWait __osSignalWait
+osEvent __osSignalWait (int32_t signals, uint32_t millisec);
+#else
 os_InRegs osEvent osSignalWait (int32_t signals, uint32_t millisec);
+#endif
 
 
 //  ==== Mutex Management ====
@@ -638,7 +582,12 @@ osStatus osMessagePut (osMessageQId queue_id, uint32_t info, uint32_t millisec);
 /// \param[in]     queue_id      message queue ID obtained with \ref osMessageCreate.
 /// \param[in]     millisec      \ref CMSIS_RTOS_TimeOutValue or 0 in case of no time-out.
 /// \return event information that includes status code.
+#if defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
+#define   osMessageGet __osMessageGet
+osEvent __osMessageGet (osMessageQId queue_id, uint32_t millisec);
+#else
 os_InRegs osEvent osMessageGet (osMessageQId queue_id, uint32_t millisec);
+#endif
 
 #endif     // Message Queues available
 
@@ -696,7 +645,12 @@ osStatus osMailPut (osMailQId queue_id, void *mail);
 /// \param[in]     queue_id      mail queue ID obtained with \ref osMailCreate.
 /// \param[in]     millisec      \ref CMSIS_RTOS_TimeOutValue or 0 in case of no time-out
 /// \return event that contains mail information or error code.
+#if defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
+#define   osMailGet __osMailGet
+osEvent __osMailGet (osMailQId queue_id, uint32_t millisec);
+#else
 os_InRegs osEvent osMailGet (osMailQId queue_id, uint32_t millisec);
+#endif
 
 /// Free a memory block from a mail.
 /// \param[in]     queue_id      mail queue ID obtained with \ref osMailCreate.
@@ -707,35 +661,22 @@ osStatus osMailFree (osMailQId queue_id, void *mail);
 #endif  // Mail Queues available
 
 
-//  ==== Thread Enumeration Functions ====
-
-#if (defined (osFeature_ThreadEnum)  &&  (osFeature_ThreadEnum != 0))     // Thread enumeration available
-
-/// Start a thread enumeration.
-/// \return an enumeration ID or NULL on error.
-osThreadEnumId _osThreadsEnumStart(void);
-
-/// Get the next task ID in the enumeration.
-/// \return a thread ID or NULL on if the end of the enumeration has been reached.
-osThreadId _osThreadEnumNext(osThreadEnumId enum_id);
-
-/// Free the enumeration structure.
-/// \param[in]     enum_id       pointer to the enumeration ID that was obtained with \ref _osThreadsEnumStart.
-/// \return status code that indicates the execution status of the function.
-osStatus _osThreadEnumFree(osThreadEnumId enum_id);
-
-#endif  // Thread Enumeration available
-
-
 //  ==== RTX Extensions ====
 
 /// Suspend the RTX task scheduler.
 /// \return number of ticks, for how long the system can sleep or power-down.
 uint32_t os_suspend (void);
 
-/// Resume the RTX task scheduler
+/// Resume the RTX task scheduler.
 /// \param[in]     sleep_time    specifies how long the system was in sleep or power-down mode.
 void os_resume (uint32_t sleep_time);
+
+/// OS idle demon (running when no other thread is ready to run).
+__NO_RETURN void os_idle_demon (void);
+
+/// OS error callback (called when a runtime error is detected).
+/// \param[in]     error_code    actual error code that has been detected.
+__NO_RETURN void os_error (uint32_t error_code);
 
 
 #ifdef  __cplusplus
@@ -743,5 +684,3 @@ void os_resume (uint32_t sleep_time);
 #endif
 
 #endif  // _CMSIS_OS_H
-
-/** @}*/

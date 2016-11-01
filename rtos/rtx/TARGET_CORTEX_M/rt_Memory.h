@@ -1,6 +1,3 @@
-
-/** \addtogroup rtos */
-/** @{*/
 /*----------------------------------------------------------------------------
  *      CMSIS-RTOS  -  RTX
  *----------------------------------------------------------------------------
@@ -45,5 +42,3 @@ typedef struct mem {              /* << Memory Pool management struct >>     */
 extern U32   rt_init_mem  (void *pool, U32  size);
 extern void *rt_alloc_mem (void *pool, U32  size);
 extern U32   rt_free_mem  (void *pool, void *mem);
-
-/** @}*/

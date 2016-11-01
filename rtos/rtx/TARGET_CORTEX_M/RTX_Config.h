@@ -1,12 +1,9 @@
-
-/** \addtogroup rtos */
-/** @{*/
 /*----------------------------------------------------------------------------
  *      CMSIS-RTOS  -  RTX
  *----------------------------------------------------------------------------
  *      Name:    RTX_CONFIG.H
  *      Purpose: Exported functions of RTX_Config.c
- *      Rev.:    V4.79
+ *      Rev.:    V4.81
  *----------------------------------------------------------------------------
  *
  * Copyright (c) 1999-2009 KEIL, 2009-2015 ARM Germany GmbH
@@ -35,6 +32,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *---------------------------------------------------------------------------*/
 
+#include <stdint.h>
 
 /* Error Codes */
 #define OS_ERR_STK_OVF          1U
@@ -74,11 +72,9 @@ extern S32  os_tick_init    (void);
 extern U32  os_tick_val     (void);
 extern U32  os_tick_ovf     (void);
 extern void os_tick_irqack  (void);
-extern void os_tmr_call     (U16  info);
-extern void os_error        (U32 err_code);
+extern void os_tmr_call     (U16 info);
+extern void os_error        (uint32_t err_code);
 
 /*----------------------------------------------------------------------------
  * end of file
  *---------------------------------------------------------------------------*/
-
-/** @}*/
