@@ -35,7 +35,7 @@
         NAME    HAL_CM4.S
 
         #define TCB_STACKF 37
-        #define TCB_TSTACK 40
+        #define TCB_TSTACK 44
 
         EXTERN  os_flags
         EXTERN  os_tsk
@@ -145,6 +145,10 @@ _free_box:
 
         PUBLIC  SVC_Handler
 SVC_Handler:
+#ifdef IFX_XMC4XXX
+        PUBLIC  SVC_Handler_Veneer
+SVC_Handler_Veneer:
+#endif
 
         MRS     R0,PSP                  /* Read PSP */
         LDR     R1,[R0,#24]             /* Read Saved PC from Stack */
@@ -162,8 +166,14 @@ SVC_Handler:
         LDR     R3,=os_tsk
         LDM     R3,{R1,R2}              /* os_tsk.run, os_tsk.new */
         CMP     R1,R2
+#ifdef  IFX_XMC4XXX
+        ITT      EQ
+        PUSHEQ  {LR}
+        POPEQ   {PC}
+#else
         IT      EQ
         BXEQ    LR                      /* RETI, no task switch */
+#endif
 
         CBNZ    R1,SVC_ContextSave      /* Runtask not deleted? */
 
@@ -177,8 +187,12 @@ SVC_Handler:
 
 SVC_ContextSave:
         TST     LR,#0x10                /* is it extended frame? */
+#if (__FPU_PRESENT == 1)
         ITTE    EQ
         VSTMDBEQ R12!,{S16-S31}         /* yes, stack also VFP hi-regs */
+#else
+        ITE     EQ
+#endif
         MOVEQ   R0,#0x01                /* os_tsk->stack_frame val */
         MOVNE   R0,#0x00
         STRB    R0,[R1,#TCB_STACKF]     /* os_tsk.run->stack_frame = val */
@@ -196,14 +210,25 @@ SVC_ContextRestore:
         LDMIA   R12!,{R4-R11}           /* Restore New Context */
         LDRB    R0,[R2,#TCB_STACKF]     /* Stack Frame */
         CMP     R0,#0                   /* Basic/Extended Stack Frame */
+#if (__FPU_PRESENT == 1)
         ITEE    EQ
+#else
+        ITE     EQ
+#endif
         MVNEQ   LR,#~0xFFFFFFFD         /* set EXC_RETURN value */
         MVNNE   LR,#~0xFFFFFFED
+#if (__FPU_PRESENT == 1)
         VLDMIANE R12!,{S16-S31}         /* restore VFP hi-registers */
+#endif
         MSR     PSP,R12                 /* Write PSP */
 
 SVC_Exit:
+#ifdef  IFX_XMC4XXX
+        PUSH    {LR}
+        POP     {PC}
+#else
         BX      LR
+#endif
 
         /*------------------- User SVC ------------------------------*/
 
@@ -232,6 +257,10 @@ SVC_Done:
 
         PUBLIC  PendSV_Handler
 PendSV_Handler:
+#ifdef  IFX_XMC4XXX
+        PUBLIC  PendSV_Handler_Veneer
+PendSV_Handler_Veneer:
+#endif
 
         PUSH    {R4,LR}                 /* Save EXC_RETURN */
         BL      rt_pop_req
@@ -242,13 +271,23 @@ Sys_Switch:
         LDR     R3,=os_tsk
         LDM     R3,{R1,R2}              /* os_tsk.run, os_tsk.new */
         CMP     R1,R2
+#ifdef  IFX_XMC4XXX
+        ITT     EQ
+        PUSHEQ  {LR}
+        POPEQ   {PC}
+#else
         IT      EQ
         BXEQ    LR                      /* RETI, no task switch */
+#endif
 
         MRS     R12,PSP                 /* Read PSP */
         TST     LR,#0x10                /* is it extended frame? */
+#if (__FPU_PRESENT == 1)
         ITTE    EQ
         VSTMDBEQ R12!,{S16-S31}         /* yes, stack also VFP hi-regs */
+#else
+        ITE     EQ
+#endif
         MOVEQ   R0,#0x01                /* os_tsk->stack_frame val */
         MOVNE   R0,#0x00
         STRB    R0,[R1,#TCB_STACKF]     /* os_tsk.run->stack_frame = val */
@@ -265,14 +304,25 @@ Sys_Switch:
         LDMIA   R12!,{R4-R11}           /* Restore New Context */
         LDRB    R0,[R2,#TCB_STACKF]     /* Stack Frame */
         CMP     R0,#0                   /* Basic/Extended Stack Frame */
+#if (__FPU_PRESENT == 1)
         ITEE    EQ
+#else
+        ITE     EQ
+#endif
         MVNEQ   LR,#~0xFFFFFFFD         /* set EXC_RETURN value */
         MVNNE   LR,#~0xFFFFFFED
+#if (__FPU_PRESENT == 1)
         VLDMIANE R12!,{S16-S31}         /* restore VFP hi-registers */
+#endif
         MSR     PSP,R12                 /* Write PSP */
 
 Sys_Exit:
+#ifdef  IFX_XMC4XXX
+        PUSH    {LR}
+        POP     {PC}
+#else
         BX      LR                      /* Return to Thread Mode */
+#endif
 
 
 /*-------------------------- SysTick_Handler --------------------------------*/
@@ -281,6 +331,10 @@ Sys_Exit:
 
         PUBLIC  SysTick_Handler
 SysTick_Handler:
+#ifdef  IFX_XMC4XXX
+        PUBLIC  SysTick_Handler_Veneer
+SysTick_Handler_Veneer:
+#endif
 
         PUSH    {R4,LR}                 /* Save EXC_RETURN */
         BL      rt_systick

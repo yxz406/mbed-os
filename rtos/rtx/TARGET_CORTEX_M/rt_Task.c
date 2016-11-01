@@ -40,6 +40,7 @@
 #include "rt_MemBox.h"
 #include "rt_Robin.h"
 #include "rt_HAL_CM.h"
+#include "rt_OsEventObserver.h"
 
 /*----------------------------------------------------------------------------
  *      Global Variables
@@ -101,6 +102,9 @@ void rt_switch_req (P_TCB p_new) {
   /* Switch to next task (identified by "p_new"). */
   os_tsk.new   = p_new;
   p_new->state = RUNNING;
+  if (osEventObs && osEventObs->thread_switch) {
+    osEventObs->thread_switch(p_new->context);
+  }
   DBG_TASK_SWITCH(p_new->task_id);
 }
 
@@ -234,18 +238,20 @@ OS_TID rt_tsk_create (FUNCP task, U32 prio_stksz, void *stk, void *argv) {
   /* If "size != 0" use a private user provided stack. */
   task_context->stack      = stk;
   task_context->priv_stack = (U16)(prio_stksz >> 8);
-  /* Pass parameter 'argv' to 'rt_init_context' */
-  task_context->msg = argv;
-  /* For 'size == 0' system allocates the user stack from the memory pool. */
-  rt_init_context (task_context, (U8)(prio_stksz & 0xFFU), task);
 
   /* Find a free entry in 'os_active_TCB' table. */
   i = rt_get_TID ();
   if (i == 0U) {
     return (0U);
   }
-  os_active_TCB[i-1U] = task_context;
   task_context->task_id = (U8)i;
+  /* Pass parameter 'argv' to 'rt_init_context' */
+  task_context->msg = argv;
+  task_context->argv = argv;
+  /* For 'size == 0' system allocates the user stack from the memory pool. */
+  rt_init_context (task_context, (U8)(prio_stksz & 0xFFU), task);
+
+  os_active_TCB[i-1U] = task_context;
   DBG_TASK_NOTIFY(task_context, __TRUE);
   rt_dispatch (task_context);
   return ((OS_TID)i);
@@ -400,6 +406,10 @@ void rt_sys_init (FUNCP first_task, U32 prio_stksz, void *stk) {
 #endif
   os_tsk.run = &os_idle_TCB;
   os_tsk.run->state = RUNNING;
+
+  /* Set the current thread to idle, so that on exit from this SVCall we do not
+   * de-reference a NULL TCB. */
+  rt_switch_req(&os_idle_TCB);
 
   /* Initialize ps queue */
   os_psq->first = 0U;

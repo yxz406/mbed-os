@@ -36,6 +36,7 @@
 #include "RTX_Config.h"
 #include "rt_HAL_CM.h"
 
+#include "cmsis_os.h"
 
 /*----------------------------------------------------------------------------
  *      Global Variables

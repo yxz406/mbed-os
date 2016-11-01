@@ -1,3 +1,5 @@
+/** \addtogroup rtos */
+/** @{*/
 /* ----------------------------------------------------------------------
  * $Date:        5. February 2013
  * $Revision:    V1.02
@@ -60,6 +62,39 @@
 
 #define osKernelSystemId "RTX V4.81"   ///< RTOS identification string
 
+#define CMSIS_OS_RTX
+
+// __MBED_CMSIS_RTOS_CM captures our changes to the RTX kernel
+#ifndef __MBED_CMSIS_RTOS_CM
+#define __MBED_CMSIS_RTOS_CM
+#endif
+// we use __CMSIS_RTOS version, which changes some API in the kernel
+#ifndef __CMSIS_RTOS
+#define __CMSIS_RTOS
+#endif
+
+// The stack space occupied is mainly dependent on the underling C standard library
+#if defined(TOOLCHAIN_GCC) || defined(TOOLCHAIN_ARM_STD) || defined(TOOLCHAIN_IAR)
+#    define WORDS_STACK_SIZE   512
+#elif defined(TOOLCHAIN_ARM_MICRO)
+#    define WORDS_STACK_SIZE   128
+#endif
+
+#ifdef __MBED_CMSIS_RTOS_CM
+
+/* Single thread - disable timers and set task count to one */
+#if defined(MBED_RTOS_SINGLE_THREAD)
+#define OS_TASKCNT  1
+#define OS_TIMERS   0
+#endif
+
+#endif /* __MBED_CMSIS_RTOS_CM */
+
+#if defined(TARGET_XDOT_L151CC)
+#define DEFAULT_STACK_SIZE         (WORDS_STACK_SIZE/2)
+#else
+#define DEFAULT_STACK_SIZE         (WORDS_STACK_SIZE*4)
+#endif
 
 #define osFeature_MainThread   1       ///< main can be thread
 #define osFeature_Pool         1       ///< Memory Pools available
@@ -69,8 +104,9 @@
 #define osFeature_Semaphore    65535   ///< Maximum count for \ref osSemaphoreCreate function
 #define osFeature_Wait         0       ///< osWait not available
 #define osFeature_SysTick      1       ///< osKernelSysTick functions available
+#define osFeature_ThreadEnum   1       ///< Thread enumeration available
 
-#if defined(__CC_ARM)
+#if defined(__CC_ARM) || defined(__ICCARM__)
 #define os_InRegs __value_in_regs      // Compiler specific: force struct in registers
 #else
 #define os_InRegs
@@ -141,6 +177,16 @@ typedef enum  {
   osTimerPeriodic         =     1        ///< repeating timer
 } os_timer_type;
 
+typedef enum {
+  osThreadInfoState,
+  osThreadInfoStackSize,
+  osThreadInfoStackMax,
+  osThreadInfoEntry,
+  osThreadInfoArg,
+
+  osThreadInfo_reserved   =  0x7FFFFFFF  ///< prevent from enum down-size compiler optimization.
+} osThreadInfo;
+
 /// Entry point of a thread.
 typedef void (*os_pthread) (void const *argument);
 
@@ -170,6 +216,8 @@ typedef struct os_messageQ_cb *osMessageQId;
 /// Mail ID identifies the mail queue (pointer to a mail queue control block).
 typedef struct os_mailQ_cb *osMailQId;
 
+/// Thread enumeration ID identifies the enumeration (pointer to a thread enumeration control block).
+typedef uint32_t *osThreadEnumId;
 
 /// Thread Definition structure contains startup information of a thread.
 typedef struct os_thread_def  {
@@ -177,6 +225,9 @@ typedef struct os_thread_def  {
   osPriority             tpriority;    ///< initial thread priority
   uint32_t               instances;    ///< maximum number of instances of that thread function
   uint32_t               stacksize;    ///< stack size requirements in bytes; 0 is default stack size
+#ifdef __MBED_CMSIS_RTOS_CM
+  uint32_t               *stack_pointer;  ///< pointer to the stack memory block
+#endif
 } osThreadDef_t;
 
 /// Timer Definition structure contains timer parameters.
@@ -282,9 +333,16 @@ uint32_t osKernelSysTick (void);
 #define osThreadDef(name, priority, instances, stacksz)  \
 extern const osThreadDef_t os_thread_def_##name
 #else                            // define the object
+#ifdef __MBED_CMSIS_RTOS_CM
+#define osThreadDef(name, priority, stacksz)  \
+uint32_t os_thread_def_stack_##name [stacksz / sizeof(uint32_t)]; \
+const osThreadDef_t os_thread_def_##name = \
+{ (name), (priority), 1, (stacksz), (os_thread_def_stack_##name) }
+#else
 #define osThreadDef(name, priority, instances, stacksz)  \
 const osThreadDef_t os_thread_def_##name = \
 { (name), (priority), (instances), (stacksz)  }
+#endif
 #endif
 
 /// Access a Thread definition.
@@ -302,6 +360,8 @@ osThreadId osThreadCreate (const osThreadDef_t *thread_def, void *argument);
 /// Return the thread ID of the current running thread.
 /// \return thread ID for reference by other functions or NULL in case of error.
 osThreadId osThreadGetId (void);
+
+osThreadId osThreadContextCreate (const osThreadDef_t *thread_def, void *argument, void *context);
 
 /// Terminate execution of a thread and remove it from Active Threads.
 /// \param[in]     thread_id   thread ID obtained by \ref osThreadCreate or \ref osThreadGetId.
@@ -323,6 +383,10 @@ osStatus osThreadSetPriority (osThreadId thread_id, osPriority priority);
 /// \return current priority value of the thread function.
 osPriority osThreadGetPriority (osThreadId thread_id);
 
+#ifdef __MBED_CMSIS_RTOS_CM
+/// Get current thread state.
+uint8_t osThreadGetState (osThreadId thread_id);
+#endif
 
 //  ==== Generic Wait Functions ====
 
@@ -661,6 +725,26 @@ osStatus osMailFree (osMailQId queue_id, void *mail);
 #endif  // Mail Queues available
 
 
+//  ==== Thread Enumeration Functions ====
+
+#if (defined (osFeature_ThreadEnum)  &&  (osFeature_ThreadEnum != 0))     // Thread enumeration available
+
+/// Start a thread enumeration.
+/// \return an enumeration ID or NULL on error.
+osThreadEnumId _osThreadsEnumStart(void);
+
+/// Get the next task ID in the enumeration.
+/// \return a thread ID or NULL on if the end of the enumeration has been reached.
+osThreadId _osThreadEnumNext(osThreadEnumId enum_id);
+
+/// Free the enumeration structure.
+/// \param[in]     enum_id       pointer to the enumeration ID that was obtained with \ref _osThreadsEnumStart.
+/// \return status code that indicates the execution status of the function.
+osStatus _osThreadEnumFree(osThreadEnumId enum_id);
+
+#endif  // Thread Enumeration available
+
+
 //  ==== RTX Extensions ====
 
 /// Suspend the RTX task scheduler.
@@ -684,3 +768,5 @@ __NO_RETURN void os_error (uint32_t error_code);
 #endif
 
 #endif  // _CMSIS_OS_H
+/** @}*/
+

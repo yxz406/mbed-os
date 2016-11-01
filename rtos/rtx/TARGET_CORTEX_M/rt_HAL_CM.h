@@ -1,3 +1,5 @@
+/** \addtogroup rtos */
+/** @{*/
 /*----------------------------------------------------------------------------
  *      CMSIS-RTOS  -  RTX
  *----------------------------------------------------------------------------
@@ -47,6 +49,11 @@
  #undef  __USE_EXCLUSIVE_ACCESS
 #endif
 
+/* Supress __ldrex and __strex deprecated warnings - "#3731-D: intrinsic is deprecated" */
+#ifdef __USE_EXCLUSIVE_ACCESS
+#pragma diag_suppress 3731
+#endif
+
 #ifndef __CMSIS_GENERIC
 #define __DMB() do {\
                    __schedule_barrier();\
@@ -59,7 +66,7 @@
 
 #undef  __USE_EXCLUSIVE_ACCESS
 
-#if defined (__CORTEX_M0)
+#if defined (__CORTEX_M0) || defined (__CORTEX_M0PLUS)
 #define __TARGET_ARCH_6S_M
 #endif
 
@@ -71,6 +78,14 @@
 #define __weak   __attribute__((weak))
 
 #ifndef __CMSIS_GENERIC
+
+__attribute__((always_inline)) static inline U32 __get_PRIMASK(void)
+{
+  U32 result;
+
+  __asm volatile ("mrs %0, primask" : "=r" (result));
+  return result;
+}
 
 __attribute__((always_inline)) static inline void __enable_irq(void)
 {
@@ -116,6 +131,14 @@ __attribute__(( always_inline)) static inline U8 __clz(U32 value)
 #define __inline inline
 
 #ifndef __CMSIS_GENERIC
+
+static inline U32 __get_PRIMASK(void)
+{
+  U32 result;
+
+  __asm volatile ("mrs %0, primask" : "=r" (result));
+  return result;
+}
 
 static inline void __enable_irq(void)
 {
@@ -198,8 +221,22 @@ extern BIT dbg_msg;
  #define rt_inc(p)     while(__strex((__ldrex(p)+1U),p))
  #define rt_dec(p)     while(__strex((__ldrex(p)-1U),p))
 #else
- #define rt_inc(p)     __disable_irq();(*p)++;__enable_irq();
- #define rt_dec(p)     __disable_irq();(*p)--;__enable_irq();
+#define rt_inc(p) do {\
+                    U32 primask = __get_PRIMASK();\
+                    __disable_irq();\
+                    (*p)++;\
+                    if (!primask) {\
+                      __enable_irq();\
+                    }\
+                  } while (0)
+#define rt_dec(p) do {\
+                    U32 primask = __get_PRIMASK();\
+                    __disable_irq();\
+                    (*p)--;\
+                    if (!primask) {\
+                      __enable_irq();\
+                    }\
+                  } while (0)
 #endif
 
 __inline static U32 rt_inc_qi (U32 size, U8 *count, U8 *first) {
@@ -215,6 +252,7 @@ __inline static U32 rt_inc_qi (U32 size, U8 *count, U8 *first) {
     if (c2 == size) { c2 = 0U; }
   } while (__strex(c2, first));
 #else
+  U32 primask = __get_PRIMASK();
   __disable_irq();
   if ((cnt = *count) < size) {
     *count = (U8)(cnt+1U);
@@ -222,7 +260,9 @@ __inline static U32 rt_inc_qi (U32 size, U8 *count, U8 *first) {
     if (c2 == size) { c2 = 0U; }
     *first = (U8)c2; 
   }
-  __enable_irq ();
+  if (!primask) {
+    __enable_irq ();
+  }
 #endif
   return (cnt);
 }
@@ -255,7 +295,11 @@ __inline static void rt_svc_init (void) {
   if (prigroup >= sh) {
     sh = prigroup + 1U;
   }
+
+/* Only change the SVCall priority if uVisor is not present. */
+#if !(defined(FEATURE_UVISOR) && defined(TARGET_UVISOR_SUPPORTED))
   NVIC_SYS_PRI2 = ((0xFEFFFFFFU << sh) & 0xFF000000U) | (NVIC_SYS_PRI2 & 0x00FFFFFFU);
+#endif /* !(defined(FEATURE_UVISOR) && defined(TARGET_UVISOR_SUPPORTED)) */
 #endif
 }
 
@@ -287,3 +331,4 @@ extern void dbg_task_switch (U32 task_id);
 /*----------------------------------------------------------------------------
  * end of file
  *---------------------------------------------------------------------------*/
+/** @}*/

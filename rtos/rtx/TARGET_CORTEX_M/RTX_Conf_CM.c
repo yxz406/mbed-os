@@ -38,7 +38,10 @@
 /*----------------------------------------------------------------------------
  *      RTX User configuration part BEGIN
  *---------------------------------------------------------------------------*/
- 
+
+// Include per-target RTX config file
+#include "mbed_rtx.h"
+
 //-------- <<< Use Configuration Wizard in Context Menu >>> -----------------
 //
 // <h>Thread Configuration
@@ -48,23 +51,32 @@
 //   <i> Defines max. number of user threads that will run at the same time.
 //   <i> Default: 6
 #ifndef OS_TASKCNT
- #define OS_TASKCNT     6
+ #error "no target defined"
 #endif
- 
+
+#ifdef __MBED_CMSIS_RTOS_CM
+//   <o>Idle stack size [bytes] <64-4096:8><#/4>
+//   <i> Defines default stack size for the Idle thread.
+#ifndef OS_IDLESTKSIZE
+ #define OS_IDLESTKSIZE 128
+#endif
+#else // __MBED_CMSIS_RTOS_CM
 //   <o>Default Thread stack size [bytes] <64-4096:8><#/4>
 //   <i> Defines default stack size for threads with osThreadDef stacksz = 0
 //   <i> Default: 200
 #ifndef OS_STKSIZE
- #define OS_STKSIZE     50      // this stack size value is in words
+ #define OS_STKSIZE     200
 #endif
- 
+#endif // __MBED_CMSIS_RTOS_CM
+
 //   <o>Main Thread stack size [bytes] <64-32768:8><#/4>
 //   <i> Defines stack size for main thread.
 //   <i> Default: 200
 #ifndef OS_MAINSTKSIZE
- #define OS_MAINSTKSIZE 50      // this stack size value is in words
+ #error "no target defined"
 #endif
- 
+
+#ifndef __MBED_CMSIS_RTOS_CM
 //   <o>Number of threads with user-provided stack size <0-250>
 //   <i> Defines the number of threads with user-provided stack size.
 //   <i> Default: 0
@@ -78,7 +90,8 @@
 #ifndef OS_PRIVSTKSIZE
  #define OS_PRIVSTKSIZE 0       // this stack size value is in words
 #endif
- 
+#endif // __MBED_CMSIS_RTOS_CM
+
 //   <q>Stack overflow checking
 //   <i> Enable stack overflow checks at thread switch.
 //   <i> Enabling this option increases slightly the execution time of a thread switch.
@@ -90,7 +103,11 @@
 //   <i> Initialize thread stack with watermark pattern for analyzing stack usage (current/maximum) in System and Thread Viewer.
 //   <i> Enabling this option increases significantly the execution time of osThreadCreate.
 #ifndef OS_STKINIT
-#define OS_STKINIT      0
+#if (defined(MBED_STACK_STATS_ENABLED) && MBED_STACK_STATS_ENABLED)
+ #define OS_STKINIT   1
+#else
+ #define OS_STKINIT   0
+#endif
 #endif
  
 //   <o>Processor mode for thread execution 
@@ -117,7 +134,7 @@
 //   <i> When the Cortex-M SysTick timer is used, the input clock 
 //   <i> is on most systems identical with the core clock.
 #ifndef OS_CLOCK
- #define OS_CLOCK       12000000
+ #error "no target defined"
 #endif
  
 //   <o>RTX Timer tick interval value [us] <1-1000000>
@@ -172,7 +189,7 @@
 //   <i> Defines stack size for Timer thread.
 //   <i> Default: 200
 #ifndef OS_TIMERSTKSZ
- #define OS_TIMERSTKSZ  50     // this stack size value is in words
+ #define OS_TIMERSTKSZ  200     // this stack size value is in words
 #endif
  
 //   <o>Timer Callback Queue size <1-32>
@@ -205,7 +222,7 @@
 //  Define max. number system mutexes that are used to protect 
 //  the arm standard runtime library. For microlib they are not used.
 #ifndef OS_MUTEXCNT
- #define OS_MUTEXCNT    8
+ #define OS_MUTEXCNT    12
 #endif
  
 /*----------------------------------------------------------------------------
@@ -216,91 +233,46 @@
  
 
 /*----------------------------------------------------------------------------
- *      Global Functions
+ *      OS Idle daemon
  *---------------------------------------------------------------------------*/
- 
-/*--------------------------- os_idle_demon ---------------------------------*/
+extern void rtos_idle_loop(void);
 
-/// \brief The idle demon is running when no other thread is ready to run
 void os_idle_demon (void) {
- 
   for (;;) {
-    /* HERE: include optional user code to be executed when no thread runs.*/
+    /* The idle demon is a system thread, running when no other thread is      */
+    /* ready to run.                                                           */
+    rtos_idle_loop();
   }
 }
- 
-#if (OS_SYSTICK == 0)   // Functions for alternative timer as RTX kernel timer
- 
-/*--------------------------- os_tick_init ----------------------------------*/
- 
-/// \brief Initializes an alternative hardware timer as RTX kernel timer
-/// \return                             IRQ number of the alternative hardware timer
-int os_tick_init (void) {
-  return (-1);  /* Return IRQ number of timer (0..239) */
-}
- 
-/*--------------------------- os_tick_val -----------------------------------*/
- 
-/// \brief Get alternative hardware timer's current value (0 .. OS_TRV)
-/// \return                             Current value of the alternative hardware timer
-uint32_t os_tick_val (void) {
-  return (0);
-}
- 
-/*--------------------------- os_tick_ovf -----------------------------------*/
- 
-/// \brief Get alternative hardware timer's  overflow flag
-/// \return                             Overflow flag\n
-///                                     - 1 : overflow
-///                                     - 0 : no overflow
-uint32_t os_tick_ovf (void) {
-  return (0);
-}
- 
-/*--------------------------- os_tick_irqack --------------------------------*/
- 
-/// \brief Acknowledge alternative hardware timer interrupt
-void os_tick_irqack (void) {
-  /* ... */
-}
- 
-#endif   // (OS_SYSTICK == 0)
- 
-/*--------------------------- os_error --------------------------------------*/
- 
-/* OS Error Codes */
-#define OS_ERROR_STACK_OVF      1
-#define OS_ERROR_FIFO_OVF       2
-#define OS_ERROR_MBX_OVF        3
-#define OS_ERROR_TIMER_OVF      4
- 
+
+/*----------------------------------------------------------------------------
+ *      RTX Errors
+ *---------------------------------------------------------------------------*/
+extern void error(const char* format, ...);
 extern osThreadId svcThreadGetId (void);
- 
-/// \brief Called when a runtime error is detected
-/// \param[in]   error_code   actual error code that has been detected
-void os_error (uint32_t error_code) {
- 
-  /* HERE: include optional code to be executed on runtime error. */
-  switch (error_code) {
-    case OS_ERROR_STACK_OVF:
-      /* Stack overflow detected for the currently running task. */
-      /* Thread can be identified by calling svcThreadGetId().   */
-      break;
-    case OS_ERROR_FIFO_OVF:
-      /* ISR FIFO Queue buffer overflow detected. */
-      break;
-    case OS_ERROR_MBX_OVF:
-      /* Mailbox overflow detected. */
-      break;
-    case OS_ERROR_TIMER_OVF:
-      /* User Timer Callback Queue overflow detected. */
-      break;
-    default:
-      break;
-  }
-  for (;;);
+
+void os_error (uint32_t err_code) {
+    /* This function is called when a runtime error is detected. Parameter     */
+    /* 'err_code' holds the runtime error code (defined in RTX_Config.h).      */
+    osThreadId err_task = svcThreadGetId();
+    error("RTX error code: 0x%08X, task ID: 0x%08X\n", err_code, err_task);
 }
- 
+
+void sysThreadError(osStatus status) {
+    if (status != osOK) {
+        osThreadId err_task = svcThreadGetId();
+        error("CMSIS-RTOS error status: 0x%08X, task ID: 0x%08X\n", status, err_task);
+    }
+}
+
+/*----------------------------------------------------------------------------
+ *      RTX Hooks
+ *---------------------------------------------------------------------------*/
+extern void thread_terminate_hook(osThreadId id);
+
+void sysThreadTerminate(osThreadId id) {
+    thread_terminate_hook(id);
+}
 
 /*----------------------------------------------------------------------------
  *      RTX Configuration Functions

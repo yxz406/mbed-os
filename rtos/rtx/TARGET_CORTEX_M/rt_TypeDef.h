@@ -1,3 +1,5 @@
+/** \addtogroup rtos */
+/** @{*/
 /*----------------------------------------------------------------------------
  *      CMSIS-RTOS  -  RTX
  *----------------------------------------------------------------------------
@@ -31,6 +33,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *---------------------------------------------------------------------------*/
+
+#ifndef RT_TYPE_DEF_H
+#define RT_TYPE_DEF_H
 
 /* Types */
 typedef char               S8;
@@ -70,12 +75,15 @@ typedef struct OS_TCB {
   /* Hardware dependant part: specific for CM processor                      */
   U8     stack_frame;             /* Stack frame: 0=Basic, 1=Extended,       */
                                   /* (2=VFP/D16 stacked, 4=NEON/D32 stacked) */
-  U16    priv_stack;              /* Private stack size, 0= system assigned  */
+  U16    reserved;                /* Two reserved bytes for alignment        */
+  U32    priv_stack;              /* Private stack size, 0= system assigned  */
   U32    tsk_stack;               /* Current task Stack pointer (R13)        */
   U32    *stack;                  /* Pointer to Task Stack memory block      */
 
   /* Task entry point used for uVision debugger                              */
   FUNCP  ptask;                   /* Task entry address                      */
+  void   *argv;                   /* Task argument                           */
+  void   *context;                /* Pointer to thread context               */
 } *P_TCB;
 #define TCB_STACKF      37        /* 'stack_frame' offset                    */
 #define TCB_TSTACK      40        /* 'tsk_stack' offset                      */
@@ -165,3 +173,6 @@ typedef struct OS_BM {
 /*----------------------------------------------------------------------------
  * end of file
  *---------------------------------------------------------------------------*/
+#endif
+
+/** @}*/
