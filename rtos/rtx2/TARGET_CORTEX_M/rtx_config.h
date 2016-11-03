@@ -1,3 +1,5 @@
+/** \addtogroup rtos */
+/** @{*/
 /*
  * Copyright (c) 2013-2016 ARM Limited. All rights reserved.
  *
@@ -558,3 +560,5 @@ void _mutex_free(mutex *m) {
 }
 
 #endif
+
+/** @}*/

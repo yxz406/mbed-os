@@ -1,3 +1,5 @@
+/** \addtogroup rtos */
+/** @{*/
 /*
  * Copyright (c) 2013-2016 ARM Limited. All rights reserved.
  *
@@ -691,3 +693,5 @@ __STATIC_INLINE uint16_t os_exc_dec16_nz (uint16_t *mem) {
 
 
 #endif  // CORE_CM_H_
+
+/** @}*/

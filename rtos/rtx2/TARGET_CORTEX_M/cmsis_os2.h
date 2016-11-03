@@ -1,3 +1,5 @@
+/** \addtogroup rtos */
+/** @{*/
 /*
  * Copyright (c) 2013-2016 ARM Limited. All rights reserved.
  *
@@ -668,3 +670,5 @@ osStatus_t osMessageQueueDelete (osMessageQueueId_t mq_id);
 #endif
  
 #endif  // CMSIS_OS2_H_
+
+/** @}*/

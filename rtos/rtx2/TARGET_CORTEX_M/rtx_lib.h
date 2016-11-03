@@ -1,3 +1,5 @@
+/** \addtogroup rtos */
+/** @{*/
 /*
  * Copyright (c) 2013-2016 ARM Limited. All rights reserved.
  *
@@ -184,3 +186,5 @@ extern osStatus_t         os_svcMessageQueueDelete      (osMessageQueueId_t mq_i
 
 
 #endif  // RTX_LIB_H_
+
+/** @}*/

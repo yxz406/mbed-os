@@ -1,3 +1,5 @@
+/** \addtogroup rtos */
+/** @{*/
 /*
  * Copyright (c) 2013-2016 ARM Limited. All rights reserved.
  *
@@ -877,3 +879,6 @@ osStatus osMailFree (osMailQId queue_id, void *mail);
 #endif
  
 #endif  // CMSIS_OS_H_
+
+/** @}*/
+

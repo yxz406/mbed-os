@@ -1,3 +1,5 @@
+/** \addtogroup rtos */
+/** @{*/
 /*
  * Copyright (c) 2013-2016 ARM Limited. All rights reserved.
  *
@@ -473,3 +475,5 @@ extern const os_config_t os_Config;             ///< OS Configuration
 #endif
 
 #endif  // RTX_OS_H_
+
+/** @}*/
