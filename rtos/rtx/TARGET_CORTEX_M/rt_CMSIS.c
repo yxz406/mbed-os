@@ -491,7 +491,7 @@ osStatus svcKernelInitialize (void) {
   if (os_initialized == 0U) {
     // Create OS Timers resources (Message Queue & Thread)
     osMessageQId_osTimerMessageQ = svcMessageCreate (&os_messageQ_def_osTimerMessageQ, NULL);
-    osThreadId_osTimerThread = svcThreadCreate(&os_thread_def_osTimerThread, NULL);
+    osThreadId_osTimerThread = svcThreadCreate(&os_thread_def_osTimerThread, NULL, NULL);
   }
 
   sysThreadError(osOK);
