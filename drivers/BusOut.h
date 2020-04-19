@@ -1,5 +1,6 @@
 /* mbed Microcontroller Library
  * Copyright (c) 2006-2013 ARM Limited
+ * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,22 +19,41 @@
 
 #include "drivers/DigitalOut.h"
 #include "platform/PlatformMutex.h"
+#include "platform/NonCopyable.h"
 
 namespace mbed {
-/** \addtogroup drivers */
-/** @{*/
+/**
+ * \defgroup drivers_BusOut BusOut class
+ * \ingroup drivers-public-api-gpio
+ * @{
+ */
 
 /** A digital output bus, used for setting the state of a collection of pins
  */
-class BusOut {
+class BusOut : private NonCopyable<BusOut> {
 
 public:
 
     /** Create an BusOut, connected to the specified pins
      *
-     *  @param p<n> DigitalOut pin to connect to bus bit <n> (p5-p30, NC)
+     *  @param p0 DigitalOut pin to connect to bus bit
+     *  @param p1 DigitalOut pin to connect to bus bit
+     *  @param p2 DigitalOut pin to connect to bus bit
+     *  @param p3 DigitalOut pin to connect to bus bit
+     *  @param p4 DigitalOut pin to connect to bus bit
+     *  @param p5 DigitalOut pin to connect to bus bit
+     *  @param p6 DigitalOut pin to connect to bus bit
+     *  @param p7 DigitalOut pin to connect to bus bit
+     *  @param p8 DigitalOut pin to connect to bus bit
+     *  @param p9 DigitalOut pin to connect to bus bit
+     *  @param p10 DigitalOut pin to connect to bus bit
+     *  @param p11 DigitalOut pin to connect to bus bit
+     *  @param p12 DigitalOut pin to connect to bus bit
+     *  @param p13 DigitalOut pin to connect to bus bit
+     *  @param p14 DigitalOut pin to connect to bus bit
+     *  @param p15 DigitalOut pin to connect to bus bit
      *
-     *  @Note Synchronization level: Thread safe
+     *  @note Synchronization level: Thread safe
      *
      *  @note
      *  It is only required to specify as many pin variables as is required
@@ -44,6 +64,10 @@ public:
            PinName p8 = NC, PinName p9 = NC, PinName p10 = NC, PinName p11 = NC,
            PinName p12 = NC, PinName p13 = NC, PinName p14 = NC, PinName p15 = NC);
 
+    /** Create an BusOut, connected to the specified pins
+     *
+     *  @param pins An array of pins to connect to bus the bit
+     */
     BusOut(PinName pins[16]);
 
     virtual ~BusOut();
@@ -67,45 +91,45 @@ public:
      *  @returns
      *    Binary mask of connected pins
      */
-    int mask() {
+    int mask()
+    {
         // No lock needed since _nc_mask is not modified outside the constructor
         return _nc_mask;
     }
 
     /** A shorthand for write()
+     * \sa BusOut::write()
      */
-    BusOut& operator= (int v);
-    BusOut& operator= (BusOut& rhs);
+    BusOut &operator= (int v);
+    BusOut &operator= (BusOut &rhs);
 
     /** Access to particular bit in random-iterator fashion
+     * @param index  Bit Position
      */
-    DigitalOut& operator[] (int index);
+    DigitalOut &operator[](int index);
 
     /** A shorthand for read()
+     * \sa BusOut::read()
      */
     operator int();
-
+#if !defined(DOXYGEN_ONLY)
 protected:
     virtual void lock();
     virtual void unlock();
-    DigitalOut* _pin[16];
+    DigitalOut *_pin[16];
 
-    /** Mask of bus's NC pins
+    /* Mask of bus's NC pins
      * If bit[n] is set to 1 - pin is connected
      * if bit[n] is cleared - pin is not connected (NC)
      */
     int _nc_mask;
 
     PlatformMutex _mutex;
-
-   /* disallow copy constructor and assignment operators */
-private:
-    BusOut(const BusOut&);
-    BusOut & operator = (const BusOut&);
+#endif
 };
+
+/** @}*/
 
 } // namespace mbed
 
 #endif
-
-/** @}*/

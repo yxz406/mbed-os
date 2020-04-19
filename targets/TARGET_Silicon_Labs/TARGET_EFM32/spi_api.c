@@ -38,12 +38,8 @@
 #include "em_usart.h"
 #include "em_cmu.h"
 #include "em_dma.h"
-#include "sleep_api.h"
-#include "sleepmodes.h"
 
 static uint16_t fill_word = SPI_FILL_WORD;
-
-#define SPI_LEAST_ACTIVE_SLEEPMODE EM1
 
 static inline CMU_Clock_TypeDef spi_get_clock_tree(spi_t *obj)
 {
@@ -59,6 +55,18 @@ static inline CMU_Clock_TypeDef spi_get_clock_tree(spi_t *obj)
 #ifdef USART2
         case SPI_2:
             return cmuClock_USART2;
+#endif
+#ifdef USART3
+        case SPI_3:
+            return cmuClock_USART3;
+#endif
+#ifdef USART4
+        case SPI_4:
+            return cmuClock_USART4;
+#endif
+#ifdef USART5
+        case SPI_5:
+            return cmuClock_USART5;
 #endif
         default:
             error("Spi module not available.. Out of bound access.");
@@ -83,6 +91,21 @@ static inline uint8_t spi_get_index(spi_t *obj)
 #ifdef USART2
         case SPI_2:
             index = 2;
+            break;
+#endif
+#ifdef USART3
+        case SPI_3:
+            index = 3;
+            break;
+#endif
+#ifdef USART4
+        case SPI_4:
+            index = 4;
+            break;
+#endif
+#ifdef USART5
+        case SPI_5:
+            index = 5;
             break;
 #endif
         default:
@@ -123,7 +146,7 @@ void spi_preinit(spi_t *obj, PinName mosi, PinName miso, PinName clk, PinName cs
     SPIName spi_ctrl = (SPIName) pinmap_merge(spi_clk, spi_cs);
 
     obj->spi.spi = (USART_TypeDef *) pinmap_merge(spi_data, spi_ctrl);
-    MBED_ASSERT((int) obj->spi.spi != NC);
+    MBED_ASSERT((unsigned int) obj->spi.spi != NC);
 
     if (cs != NC) { /* Slave mode */
         obj->spi.master = false;
@@ -196,6 +219,7 @@ void spi_enable_pins(spi_t *obj, uint8_t enable, PinName mosi, PinName miso, Pin
     /* Enabling pins and setting location */
 #ifdef _USART_ROUTEPEN_RESETVALUE
     uint32_t route = USART_ROUTEPEN_CLKPEN;
+
     obj->spi.spi->ROUTELOC0 &= ~_USART_ROUTELOC0_CLKLOC_MASK;
     obj->spi.spi->ROUTELOC0 |= pin_location(clk, PinMap_SPI_CLK)<<_USART_ROUTELOC0_CLKLOC_SHIFT;
     if (mosi != NC) {
@@ -206,17 +230,19 @@ void spi_enable_pins(spi_t *obj, uint8_t enable, PinName mosi, PinName miso, Pin
     if (miso != NC) {
         route |= USART_ROUTEPEN_RXPEN;
         obj->spi.spi->ROUTELOC0 &= ~_USART_ROUTELOC0_RXLOC_MASK;
-        obj->spi.spi->ROUTELOC0 |= pin_location(miso, PinMap_SPI_MOSI)<<_USART_ROUTELOC0_RXLOC_SHIFT;
+        obj->spi.spi->ROUTELOC0 |= pin_location(miso, PinMap_SPI_MISO)<<_USART_ROUTELOC0_RXLOC_SHIFT;
     }
     if (!obj->spi.master) {
         route |= USART_ROUTEPEN_CSPEN;
         obj->spi.spi->ROUTELOC0 &= ~_USART_ROUTELOC0_CSLOC_MASK;
-        obj->spi.spi->ROUTELOC0 |= pin_location(cs, PinMap_SPI_MOSI)<<_USART_ROUTELOC0_CSLOC_SHIFT;
+        obj->spi.spi->ROUTELOC0 |= pin_location(cs, PinMap_SPI_CS)<<_USART_ROUTELOC0_CSLOC_SHIFT;
     }
+    obj->spi.location = obj->spi.spi->ROUTELOC0;
+    obj->spi.route = route;
     obj->spi.spi->ROUTEPEN = route;
 }
 #else
-    uint32_t route = USART_ROUTE_CLKPEN | (obj->spi.location << _USART_ROUTE_LOCATION_SHIFT);
+    uint32_t route = USART_ROUTE_CLKPEN;
 
     if (mosi != NC) {
         route |= USART_ROUTE_TXPEN;
@@ -227,7 +253,9 @@ void spi_enable_pins(spi_t *obj, uint8_t enable, PinName mosi, PinName miso, Pin
     if (!obj->spi.master) {
         route |= USART_ROUTE_CSPEN;
     }
+    route |= obj->spi.location << _USART_ROUTE_LOCATION_SHIFT;
     obj->spi.spi->ROUTE = route;
+    obj->spi.route = route;
 }
 #endif
 void spi_enable(spi_t *obj, uint8_t enable)
@@ -244,6 +272,12 @@ void spi_init(spi_t *obj, PinName mosi, PinName miso, PinName clk, PinName cs)
 
     spi_enable_pins(obj, true, mosi, miso, clk, cs);
     spi_enable(obj, true);
+}
+
+void spi_free(spi_t *obj)
+{
+    spi_enable(obj, false);
+    USART_Reset(obj->spi.spi);
 }
 
 void spi_enable_event(spi_t *obj, uint32_t event, uint8_t enable)
@@ -280,6 +314,21 @@ void spi_enable_interrupt(spi_t *obj, uint32_t handler, uint8_t enable)
 #ifdef USART2
         case USART_2:
             IRQvector = USART2_RX_IRQn;
+            break;
+#endif
+#ifdef USART3
+        case USART_3:
+            IRQvector = USART3_RX_IRQn;
+            break;
+#endif
+#ifdef USART4
+        case USART_4:
+            IRQvector = USART4_RX_IRQn;
+            break;
+#endif
+#ifdef USART5
+        case USART_5:
+            IRQvector = USART5_RX_IRQn;
             break;
 #endif
         default:
@@ -324,14 +373,6 @@ void spi_format(spi_t *obj, int bits, int mode, int slave)
         default:
             clockMode = usartClockMode0;
     }
-
-    //save state
-#ifdef _USART_ROUTEPEN_RESETVALUE
-    uint32_t route = obj->spi.spi->ROUTEPEN;
-    uint32_t loc = obj->spi.spi->ROUTELOC0;
-#else
-    uint32_t route = obj->spi.spi->ROUTE;
-#endif
     uint32_t iflags = obj->spi.spi->IEN;
     bool enabled = (obj->spi.spi->STATUS & (USART_STATUS_RXENS | USART_STATUS_TXENS)) != 0;
 
@@ -339,10 +380,10 @@ void spi_format(spi_t *obj, int bits, int mode, int slave)
 
     //restore state
 #ifdef _USART_ROUTEPEN_RESETVALUE
-    obj->spi.spi->ROUTEPEN = route;
-    obj->spi.spi->ROUTELOC0 = loc;
+    obj->spi.spi->ROUTEPEN = obj->spi.route;
+    obj->spi.spi->ROUTELOC0 = obj->spi.location;
 #else
-    obj->spi.spi->ROUTE = route;
+    obj->spi.spi->ROUTE = obj->spi.route;
 #endif
     obj->spi.spi->IEN = iflags;
 
@@ -392,6 +433,21 @@ int spi_master_write(spi_t *obj, int value)
     }
 
     return spi_read(obj);
+}
+
+int spi_master_block_write(spi_t *obj, const char *tx_buffer, int tx_length,
+                           char *rx_buffer, int rx_length, char write_fill) {
+    int total = (tx_length > rx_length) ? tx_length : rx_length;
+
+    for (int i = 0; i < total; i++) {
+        char out = (i < tx_length) ? tx_buffer[i] : write_fill;
+        char in = spi_master_write(obj, out);
+        if (i < rx_length) {
+            rx_buffer[i] = in;
+        }
+    }
+
+    return total;
 }
 
 inline uint8_t spi_master_tx_ready(spi_t *obj)
@@ -759,6 +815,24 @@ static void spi_master_dma_channel_setup(spi_t *obj, void* callback)
             txChnlCfg.select = DMAREQ_USART2_TXEMPTY;
             break;
 #endif
+#ifdef USART3
+        case SPI_3:
+            rxChnlCfg.select = DMAREQ_USART3_RXDATAV;
+            txChnlCfg.select = DMAREQ_USART3_TXEMPTY;
+            break;
+#endif
+#ifdef USART4
+        case SPI_4:
+            rxChnlCfg.select = DMAREQ_USART4_RXDATAV;
+            txChnlCfg.select = DMAREQ_USART4_TXEMPTY;
+            break;
+#endif
+#ifdef USART5
+        case SPI_5:
+            rxChnlCfg.select = DMAREQ_USART5_RXDATAV;
+            txChnlCfg.select = DMAREQ_USART5_TXEMPTY;
+            break;
+#endif
         default:
             error("Spi module not available.. Out of bound access.");
             break;
@@ -787,12 +861,36 @@ static void spi_activate_dma(spi_t *obj, void* rxdata, const void* txdata, int t
         /* Select RX source address. 9 bit frame length requires to use extended register.
            10 bit and larger frame requires to use RXDOUBLE register. */
         switch((int)obj->spi.spi) {
+#ifdef USART0
             case USART_0:
                 dma_periph = ldmaPeripheralSignal_USART0_RXDATAV;
                 break;
+#endif
+#ifdef USART1
             case USART_1:
                 dma_periph = ldmaPeripheralSignal_USART1_RXDATAV;
                 break;
+#endif
+#ifdef USART2
+            case USART_2:
+                dma_periph = ldmaPeripheralSignal_USART2_RXDATAV;
+                break;
+#endif
+#ifdef USART3
+            case USART_3:
+                dma_periph = ldmaPeripheralSignal_USART3_RXDATAV;
+                break;
+#endif
+#ifdef USART4
+            case USART_4:
+                dma_periph = ldmaPeripheralSignal_USART4_RXDATAV;
+                break;
+#endif
+#ifdef USART5
+            case USART_5:
+                dma_periph = ldmaPeripheralSignal_USART5_RXDATAV;
+                break;
+#endif
             default:
                 EFM_ASSERT(0);
                 while(1);
@@ -1091,9 +1189,6 @@ void spi_master_transfer(spi_t *obj, const void *tx, size_t tx_length, void *rx,
     spi_enable_event(obj, SPI_EVENT_ALL, false);
     spi_enable_event(obj, event, true);
 
-    // Set the sleep mode
-    blockSleepMode(SPI_LEAST_ACTIVE_SLEEPMODE);
-
     /* And kick off the transfer */
     spi_master_transfer_dma(obj, tx, rx, tx_length, rx_length, (void*)handler, hint);
 }
@@ -1148,7 +1243,6 @@ uint32_t spi_irq_handler_asynch(spi_t* obj)
 
         /* Wait transmit to complete, before user code is indicated*/
         while(!(obj->spi.spi->STATUS & USART_STATUS_TXC));
-        unblockSleepMode(SPI_LEAST_ACTIVE_SLEEPMODE);
         /* return to CPP land to say we're finished */
         return SPI_EVENT_COMPLETE;
     } else {
@@ -1166,7 +1260,6 @@ uint32_t spi_irq_handler_asynch(spi_t* obj)
             /* disable interrupts */
             spi_enable_interrupt(obj, (uint32_t)NULL, false);
 
-            unblockSleepMode(SPI_LEAST_ACTIVE_SLEEPMODE);
             /* Return the event back to userland */
             return event;
         }
@@ -1210,7 +1303,7 @@ uint32_t spi_irq_handler_asynch(spi_t* obj)
                     rx_pointer = ((uint16_t *)obj->rx_buff.buffer) + obj->rx_buff.pos;
                 } else {
                     rx_pointer = ((uint8_t *)obj->rx_buff.buffer) + obj->rx_buff.pos;
-                }                
+                }
             }
             uint32_t rx_length = obj->rx_buff.length - obj->rx_buff.pos;
 
@@ -1274,7 +1367,6 @@ uint32_t spi_irq_handler_asynch(spi_t* obj)
 
         /* Wait for transmit to complete, before user code is indicated */
         while(!(obj->spi.spi->STATUS & USART_STATUS_TXC));
-        unblockSleepMode(SPI_LEAST_ACTIVE_SLEEPMODE);
 
         /* return to CPP land to say we're finished */
         return SPI_EVENT_COMPLETE;
@@ -1295,7 +1387,6 @@ uint32_t spi_irq_handler_asynch(spi_t* obj)
 
             /* Wait for transmit to complete, before user code is indicated */
             while(!(obj->spi.spi->STATUS & USART_STATUS_TXC));
-            unblockSleepMode(SPI_LEAST_ACTIVE_SLEEPMODE);
 
             /* Return the event back to userland */
             return event;
@@ -1335,9 +1426,48 @@ void spi_abort_asynch(spi_t *obj)
         // Interrupt implementation: switch off interrupts
         spi_enable_interrupt(obj, (uint32_t)NULL, false);
     }
+}
 
-    // Release sleep mode block
-    unblockSleepMode(SPI_LEAST_ACTIVE_SLEEPMODE);
+const PinMap *spi_master_mosi_pinmap()
+{
+    return PinMap_SPI_MOSI;
+}
+
+const PinMap *spi_master_miso_pinmap()
+{
+    return PinMap_SPI_MISO;
+}
+
+const PinMap *spi_master_clk_pinmap()
+{
+    // We don't currently support hardware CS in master mode.
+    static const PinMap PinMap_SPI_CLK_mod[] = {NC ,  NC   , NC};
+    return PinMap_SPI_CLK_mod;
+}
+
+const PinMap *spi_master_cs_pinmap()
+{
+    return PinMap_SPI_CS;
+}
+
+const PinMap *spi_slave_mosi_pinmap()
+{
+    return PinMap_SPI_MOSI;
+}
+
+const PinMap *spi_slave_miso_pinmap()
+{
+    return PinMap_SPI_MISO;
+}
+
+const PinMap *spi_slave_clk_pinmap()
+{
+    return PinMap_SPI_CLK;
+}
+
+const PinMap *spi_slave_cs_pinmap()
+{
+    return PinMap_SPI_CS;
 }
 
 #endif

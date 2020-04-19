@@ -34,6 +34,11 @@
 #include "PortNames.h"
 #include "PeripheralNames.h"
 #include "PinNames.h"
+#include "stm32f7xx_ll_usart.h"
+#include "stm32f7xx_ll_tim.h"
+#include "stm32f7xx_ll_adc.h"
+#include "stm32f7xx_ll_rtc.h"
+#include "stm32f7xx_ll_pwr.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,7 +62,7 @@ struct spi_s {
     PinName pin_mosi;
     PinName pin_sclk;
     PinName pin_ssel;
-#ifdef DEVICE_SPI_ASYNCH
+#if DEVICE_SPI_ASYNCH
     uint32_t event;
     uint8_t transfer_type;
 #endif
@@ -80,7 +85,7 @@ struct serial_s {
     PinName pin_rts;
     PinName pin_cts;
 #endif
- };
+};
 
 struct i2c_s {
     /*  The 1st 2 members I2CName i2c
@@ -98,6 +103,7 @@ struct i2c_s {
     IRQn_Type error_i2cIRQ;
     uint32_t XferOperation;
     volatile uint8_t event;
+    volatile int pending_start;
 #if DEVICE_I2CSLAVE
     uint8_t slave;
     volatile uint8_t pending_slave_tx_master_rx;
@@ -110,7 +116,53 @@ struct i2c_s {
 #endif
 };
 
+struct analogin_s {
+    ADC_HandleTypeDef handle;
+    PinName pin;
+    uint8_t channel;
+};
+
+#define GPIO_IP_WITHOUT_BRR
 #include "gpio_object.h"
+
+struct dac_s {
+    DACName dac;
+    PinName pin;
+    uint32_t channel;
+    DAC_HandleTypeDef handle;
+};
+
+struct flash_s {
+    /*  nothing to be stored for now */
+    uint32_t dummy;
+};
+
+#if DEVICE_CAN
+struct can_s {
+    CAN_HandleTypeDef CanHandle;
+    int index;
+    int hz;
+};
+#endif
+
+#if DEVICE_QSPI
+struct qspi_s {
+#if defined(OCTOSPI1)
+    OSPI_HandleTypeDef handle;
+#else
+    QSPI_HandleTypeDef handle;
+#endif
+    QSPIName qspi;
+    PinName io0;
+    PinName io1;
+    PinName io2;
+    PinName io3;
+    PinName sclk;
+    PinName ssel;
+};
+#endif
+
+#define HAL_CRC_IS_SUPPORTED(polynomial, width) ((width) == 7 || (width) == 8 || (width) == 16 || (width) == 32)
 
 #ifdef __cplusplus
 }

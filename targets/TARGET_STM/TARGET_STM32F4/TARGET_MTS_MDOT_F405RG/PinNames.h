@@ -31,42 +31,11 @@
 #define MBED_PINNAMES_H
 
 #include "cmsis.h"
+#include "PinNamesTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// See stm32f4xx_hal_gpio.h and stm32f4xx_hal_gpio_ex.h for values of MODE, PUPD and AFNUM
-#define STM_PIN_DATA(MODE, PUPD, AFNUM)  ((int)(((AFNUM & 0x0F) << 7) | ((PUPD & 0x07) << 4) | ((MODE & 0x0F) << 0)))
-#define STM_PIN_DATA_EXT(MODE, PUPD, AFNUM, CHANNEL, INVERTED)  ((int)(((INVERTED & 0x01) << 16) | ((CHANNEL & 0x1F) << 11) | ((AFNUM & 0x0F) << 7) | ((PUPD & 0x07) << 4) | ((MODE & 0x0F) << 0)))
-#define STM_PIN_MODE(X)   (((X) >> 0) & 0x0F)
-#define STM_PIN_PUPD(X)   (((X) >> 4) & 0x07)
-#define STM_PIN_AFNUM(X)  (((X) >> 7) & 0x0F)
-#define STM_PIN_CHANNEL(X)  (((X) >> 11) & 0x1F)
-#define STM_PIN_INVERTED(X) (((X) >> 16) & 0x01)
-#define STM_MODE_INPUT              (0)
-#define STM_MODE_OUTPUT_PP          (1)
-#define STM_MODE_OUTPUT_OD          (2)
-#define STM_MODE_AF_PP              (3)
-#define STM_MODE_AF_OD              (4)
-#define STM_MODE_ANALOG             (5)
-#define STM_MODE_IT_RISING          (6)
-#define STM_MODE_IT_FALLING         (7)
-#define STM_MODE_IT_RISING_FALLING  (8)
-#define STM_MODE_EVT_RISING         (9)
-#define STM_MODE_EVT_FALLING        (10)
-#define STM_MODE_EVT_RISING_FALLING (11)
-#define STM_MODE_IT_EVT_RESET       (12)
-
-// High nibble = port number (0=A, 1=B, 2=C, 3=D, 4=E, 5=F, 6=G, 7=H)
-// Low nibble  = pin number
-#define STM_PORT(X) (((uint32_t)(X) >> 4) & 0xF)
-#define STM_PIN(X)  ((uint32_t)(X) & 0xF)
-
-typedef enum {
-    PIN_INPUT,
-    PIN_OUTPUT
-} PinDirection;
 
 typedef enum {
     PA_0  = 0x00,
@@ -146,17 +115,38 @@ typedef enum {
     PWM0        = PA_8,
     PWM1        = PC_9,
 
-    // Not connected
-    NC = (int)0xFFFFFFFF
-} PinName;
+    //USB pins
+    USB_OTG_HS_ULPI_D0 = PA_3,
+    USB_OTG_HS_SOF = PA_4,
+    USB_OTG_HS_ULPI_CK = PA_5,
+    USB_OTG_FS_SOF = PA_8,
+    USB_OTG_FS_VBUS = PA_9,
+    USB_OTG_FS_ID = PA_10,
+    USB_OTG_FS_DM = PA_11,
+    USB_OTG_FS_DP = PA_12,
+    USB_OTG_HS_ULPI_D1 = PB_0,
+    USB_OTG_HS_ULPI_D2 = PB_1,
+    USB_OTG_HS_ULPI_D7 = PB_5,
+    USB_OTG_HS_ULPI_D3 = PB_10,
+    USB_OTG_HS_ULPI_D4 = PB_11,
+    USB_OTG_HS_ID = PB_12,
+    USB_OTG_HS_ULPI_D5 = PB_12,
+    USB_OTG_HS_ULPI_D6 = PB_13,
+    USB_OTG_HS_VBUS = PB_13,
+    USB_OTG_HS_DM = PB_14,
+    USB_OTG_HS_DP = PB_15,
+    USB_OTG_HS_ULPI_STP = PC_0,
+    USB_OTG_HS_ULPI_DIR = PC_2,
+    USB_OTG_HS_ULPI_NXT = PC_3,
 
-typedef enum {
-    PullNone  = 0,
-    PullUp    = 1,
-    PullDown  = 2,
-    OpenDrain = 3,
-    PullDefault = PullNone
-} PinMode;
+    // Not connected
+    NC = (int)0xFFFFFFFF,
+
+    // Standard but not supported pins
+    USBTX = NC,
+    USBRX = NC
+
+} PinName;
 
 #ifdef __cplusplus
 }

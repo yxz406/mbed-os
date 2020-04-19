@@ -1,5 +1,6 @@
 /* mbed Microcontroller Library
- * Copyright (c) 2006-2013 ARM Limited
+ * Copyright (c) 2006-2019 ARM Limited
+ * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +18,20 @@
 #define MBED_TIMEOUT_H
 
 #include "drivers/Ticker.h"
+#include "platform/NonCopyable.h"
 
 namespace mbed {
-/** \addtogroup drivers */
-/** @{*/
+/**
+ * \defgroup drivers_Timeout Timeout class
+ * \ingroup drivers-public-api-ticker
+ * @{
+ */
 
 /** A Timeout is used to call a function at a point in the future
  *
- * You can use as many seperate Timeout objects as you require.
+ * You can use as many separate Timeout objects as you require.
  *
- * @Note Synchronization level: Interrupt safe
+ * @note Synchronization level: Interrupt safe
  *
  * Example:
  * @code
@@ -47,19 +52,21 @@ namespace mbed {
  *     timeout.attach(&attimeout, 5);
  *     while(on) {
  *         led = !led;
- *         wait(0.2);
+ *         ThisThread::sleep_for(200);
  *     }
  * }
  * @endcode
  */
-class Timeout : public Ticker {
+class Timeout : public Ticker, private NonCopyable<Timeout> {
 
+#if !defined(DOXYGEN_ONLY)
 protected:
     virtual void handler();
+#endif
 };
+
+/** @}*/
 
 } // namespace mbed
 
 #endif
-
-/** @}*/

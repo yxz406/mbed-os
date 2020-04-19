@@ -36,7 +36,7 @@
 extern "C" {
 #endif
 
-#ifdef DEVICE_I2C
+#if DEVICE_I2C
 
 #define I2C_IP_VERSION_V2
 
@@ -61,16 +61,16 @@ extern "C" {
 #define I2CAPI_I2C4_CLKSRC RCC_I2C4CLKSOURCE_SYSCLK
 
 /*  Provide the suitable timing depending on requested frequencie */
-inline uint32_t get_i2c_timing(int hz)
+static inline uint32_t get_i2c_timing(int hz)
 {
     uint32_t tim = 0;
 
     switch (hz) {
         case 100000:
             tim = 0x20602938; // Standard mode with Rise Time = 400ns and Fall Time = 100ns
-                break;
+            break;
         case 400000:
-             tim = 0x00B0122A; // Fast mode with Rise Time = 250ns and Fall Time = 100ns
+            tim = 0x00B0122A; // Fast mode with Rise Time = 250ns and Fall Time = 100ns
             break;
         case 1000000:
             tim = 0x0030040E; // Fast mode Plus with Rise Time = 60ns and Fall Time = 100ns

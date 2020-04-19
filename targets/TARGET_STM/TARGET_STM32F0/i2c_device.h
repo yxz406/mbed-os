@@ -36,7 +36,7 @@
 extern "C" {
 #endif
 
-#ifdef DEVICE_I2C
+#if DEVICE_I2C
 
 #if defined I2C1_BASE
 #define I2C1_EV_IRQn I2C1_IRQn
@@ -61,7 +61,7 @@ extern "C" {
 #define I2CAPI_I2C1_CLKSRC RCC_I2C1CLKSOURCE_SYSCLK
 
 /*  Provide the suitable timing depending on requested frequencie */
-inline uint32_t get_i2c_timing(int hz)
+static inline uint32_t get_i2c_timing(int hz)
 {
     uint32_t tim = 0;
 

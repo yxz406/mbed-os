@@ -26,11 +26,11 @@
 #if DEVICE_PWMOUT
 
 #include "mbed_assert.h"
+#include "mbed_power_mgmt.h"
 #include "pwmout_api.h"
 #include "pinmap.h"
 #include "PeripheralPins.h"
 #include "device_peripherals.h"
-#include "sleepmodes.h"
 
 #include "em_cmu.h"
 #include "em_gpio.h"
@@ -131,7 +131,7 @@ bool pwmout_all_inactive(void) {
         return true;
     }
 #else
-    if(PWM_TIMER->ROUTE & (TIMER_ROUTE_CC0PEN | TIMER_ROUTE_CC1PEN | TIMER_ROUTE_CC2PEN)) {
+    if (!(PWM_TIMER->ROUTE & (TIMER_ROUTE_CC0PEN | TIMER_ROUTE_CC1PEN | TIMER_ROUTE_CC2PEN))) {
         return true;
     }
 #endif
@@ -180,7 +180,7 @@ void pwmout_init(pwmout_t *obj, PinName pin)
         return;
     } else {
         pwmout_set_channel_route(pwmout_get_channel_route(obj->channel));
-        blockSleepMode(EM1);
+        sleep_manager_lock_deep_sleep();
         pwmout_enable(obj, true);
         pwmout_enable_pins(obj, true);
     }
@@ -210,10 +210,11 @@ void pwmout_init(pwmout_t *obj, PinName pin)
 #else
     // On P1, the route location is statically defined for the entire timer.
     PWM_TIMER->ROUTE &= ~_TIMER_ROUTE_LOCATION_MASK;
-if(pwmout_all_inactive()) {
+    // Make sure the route location is not overwritten
+    if(pwmout_all_inactive()) {
         PWM_TIMER->ROUTE |= pinmap_find_function(pin,PinMap_PWM) << _TIMER_ROUTE_LOCATION_SHIFT;
     } else {
-        MBED_ASSERT((pinmap_find_function(pin,PinMap_PWM) << _TIMER_ROUTE_LOCATION_SHIFT) == (PWM_TIMER->ROUTE & _TIMER_ROUTE_LOCATION_MASK));
+        MBED_ASSERT((PWM_TIMER->ROUTE & _TIMER_ROUTE_LOCATION_MASK) == pinmap_find_function(pin,PinMap_PWM) << _TIMER_ROUTE_LOCATION_SHIFT);
     }
 #endif
 
@@ -225,18 +226,18 @@ void pwmout_free(pwmout_t *obj)
 {
     if(pwmout_disable_channel_route(pwmout_get_channel_route(obj->channel))) {
         //Channel was previously enabled, so do housekeeping
-        unblockSleepMode(EM1);
+        sleep_manager_unlock_deep_sleep();
     } else {
         //This channel was disabled already
     }
-    
+
     pwmout_enable_pins(obj, false);
-    
+
     if(pwmout_all_inactive()) {
         //Stop timer
         PWM_TIMER->CMD = TIMER_CMD_STOP;
         while(PWM_TIMER->STATUS & TIMER_STATUS_RUNNING);
-        
+
         //Disable clock
         CMU_ClockEnable(PWM_TIMER_CLOCK, false);
     }
@@ -301,7 +302,7 @@ void pwmout_period(pwmout_t *obj, float seconds)
     }
 
     //Check if anything changed
-    if(((PWM_TIMER->CTRL & ~_TIMER_CTRL_PRESC_MASK) == (pwm_prescaler_div << _TIMER_CTRL_PRESC_SHIFT)) && (TIMER_TopGet(PWM_TIMER) == cycles)) return;
+    if(((PWM_TIMER->CTRL & _TIMER_CTRL_PRESC_MASK) == (pwm_prescaler_div << _TIMER_CTRL_PRESC_SHIFT)) && (TIMER_TopGet(PWM_TIMER) == cycles)) return;
 
     //Save previous period for recalculation of duty cycles
     uint32_t previous_period_cycles = PWM_TIMER->TOPB;
@@ -341,14 +342,19 @@ void pwmout_pulsewidth(pwmout_t *obj, float seconds)
 
 void pwmout_pulsewidth_ms(pwmout_t *obj, int ms)
 {
-    uint16_t width_cycles = (uint16_t) ((REFERENCE_FREQUENCY >> pwm_prescaler_div) * ms) / 1000;
+    uint16_t width_cycles = (uint16_t) (((REFERENCE_FREQUENCY >> pwm_prescaler_div) * ms) / 1000);
     TIMER_CompareBufSet(PWM_TIMER, obj->channel, width_cycles);
 }
 
 void pwmout_pulsewidth_us(pwmout_t *obj, int us)
 {
-    uint16_t width_cycles = (uint16_t) ((REFERENCE_FREQUENCY >> pwm_prescaler_div) * us) / 1000000;
+    uint16_t width_cycles = (uint16_t) (((uint64_t)(REFERENCE_FREQUENCY >> pwm_prescaler_div) * (uint64_t)us) / 1000000UL);
     TIMER_CompareBufSet(PWM_TIMER, obj->channel, width_cycles);
+}
+
+const PinMap *pwmout_pinmap()
+{
+    return PinMap_PWM;
 }
 
 #endif

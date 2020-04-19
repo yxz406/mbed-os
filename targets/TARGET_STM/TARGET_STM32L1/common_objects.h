@@ -34,6 +34,9 @@
 #include "PortNames.h"
 #include "PeripheralNames.h"
 #include "PinNames.h"
+#include "stm32l1xx_ll_usart.h"
+#include "stm32l1xx_ll_tim.h"
+#include "stm32l1xx_ll_pwr.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,6 +48,8 @@ struct pwmout_s {
     uint32_t prescaler;
     uint32_t period;
     uint32_t pulse;
+    uint8_t channel;
+    uint8_t inverted;
 };
 
 struct serial_s {
@@ -74,7 +79,7 @@ struct spi_s {
     PinName pin_mosi;
     PinName pin_sclk;
     PinName pin_ssel;
-#ifdef DEVICE_SPI_ASYNCH
+#if DEVICE_SPI_ASYNCH
     uint32_t event;
     uint8_t transfer_type;
 #endif
@@ -106,6 +111,24 @@ struct i2c_s {
     uint8_t stop;
     uint8_t available_events;
 #endif
+};
+
+struct flash_s {
+    /*  nothing to be stored for now */
+    uint32_t dummy;
+};
+
+struct dac_s {
+    DACName dac;
+    PinName pin;
+    uint32_t channel;
+    DAC_HandleTypeDef handle;
+};
+
+struct analogin_s {
+    ADC_HandleTypeDef handle;
+    PinName pin;
+    uint8_t channel;
 };
 
 #include "gpio_object.h"

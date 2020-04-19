@@ -33,6 +33,9 @@
 
 #include "mbed_assert.h"
 #include "i2c_api.h"
+
+#if DEVICE_I2C
+
 #include "i2cm_regs.h"
 #include "i2cm.h"
 #include "pinmap.h"
@@ -79,7 +82,7 @@ void i2c_init(i2c_t *obj, PinName sda, PinName scl)
 //******************************************************************************
 void i2c_frequency(i2c_t *obj, int hz)
 {
-    I2CM_SetFrequency(obj->i2c, hz);
+    I2CM_SetFrequency(obj->i2c, (i2cm_speed_t)hz);
 }
 
 //******************************************************************************
@@ -101,7 +104,6 @@ int i2c_stop(i2c_t *obj)
 //******************************************************************************
 int i2c_read(i2c_t *obj, int address, char *data, int length, int stop)
 {
-    MBED_ASSERT(stop != 0);
     return I2CM_Read(obj->i2c, address >> 1, NULL, 0, (uint8_t *)data, length);
 }
 
@@ -145,11 +147,6 @@ int i2c_byte_read(i2c_t *obj, int last)
     if (last) {
         // NACK the last read byte
         if (I2CM_WriteTxFifo(i2cm, fifo, MXC_S_I2CM_TRANS_TAG_RXDATA_NACK) != E_NO_ERROR) {
-            goto byte_write_err;
-        }
-
-        // Send the stop condition
-        if (I2CM_WriteTxFifo(i2cm, fifo, MXC_S_I2CM_TRANS_TAG_STOP) != E_NO_ERROR) {
             goto byte_write_err;
         }
     } else {
@@ -212,3 +209,25 @@ int i2c_byte_write(i2c_t *obj, int data)
 
     return MBED_ACK;
 }
+
+const PinMap *i2c_master_sda_pinmap()
+{
+    return PinMap_I2C_SDA;
+}
+
+const PinMap *i2c_master_scl_pinmap()
+{
+    return PinMap_I2C_SCL;
+}
+
+const PinMap *i2c_slave_sda_pinmap()
+{
+    return PinMap_I2C_SDA;
+}
+
+const PinMap *i2c_slave_scl_pinmap()
+{
+    return PinMap_I2C_SCL;
+}
+
+#endif  // #if DEVICE_I2C

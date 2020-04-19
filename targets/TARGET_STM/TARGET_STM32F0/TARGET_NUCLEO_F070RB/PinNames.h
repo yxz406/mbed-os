@@ -1,6 +1,6 @@
 /* mbed Microcontroller Library
  *******************************************************************************
- * Copyright (c) 2014, STMicroelectronics
+ * Copyright (c) 2018, STMicroelectronics
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,54 +27,23 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************
  */
+
 #ifndef MBED_PINNAMES_H
 #define MBED_PINNAMES_H
 
 #include "cmsis.h"
+#include "PinNamesTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define STM_PIN_DATA(MODE, PUPD, AFNUM)  ((int)(((MODE  & 0x0F) << 0) |\
-                                                ((PUPD  & 0x07) << 4) |\
-                                                ((AFNUM & 0x0F) << 7)))
-
-#define STM_PIN_DATA_EXT(MODE, PUPD, AFNUM, CHANNEL, INVERTED)  ((int)(((MODE     & 0x0F) <<  0) |\
-                                                                       ((PUPD     & 0x07) <<  4) |\
-                                                                       ((AFNUM    & 0x0F) <<  7) |\
-                                                                       ((CHANNEL  & 0x1F) << 11) |\
-                                                                       ((INVERTED & 0x01) << 16)))
-
-#define STM_PIN_MODE(X)   (((X) >> 0) & 0x0F)
-#define STM_PIN_PUPD(X)   (((X) >> 4) & 0x07)
-#define STM_PIN_AFNUM(X)  (((X) >> 7) & 0x0F)
-#define STM_PIN_CHANNEL(X)  (((X) >> 11) & 0x1F)
-#define STM_PIN_INVERTED(X) (((X) >> 16) & 0x01)
-
-#define STM_MODE_INPUT              (0)
-#define STM_MODE_OUTPUT_PP          (1)
-#define STM_MODE_OUTPUT_OD          (2)
-#define STM_MODE_AF_PP              (3)
-#define STM_MODE_AF_OD              (4)
-#define STM_MODE_ANALOG             (5)
-#define STM_MODE_IT_RISING          (6)
-#define STM_MODE_IT_FALLING         (7)
-#define STM_MODE_IT_RISING_FALLING  (8)
-#define STM_MODE_EVT_RISING         (9)
-#define STM_MODE_EVT_FALLING        (10)
-#define STM_MODE_EVT_RISING_FALLING (11)
-#define STM_MODE_IT_EVT_RESET       (12)
-
-// High nibble = port number (0=A, 1=B, 2=C, 3=D, 4=E, 5=F, 6=G, 7=H)
-// Low nibble  = pin number
-#define STM_PORT(X) (((uint32_t)(X) >> 4) & 0xF)
-#define STM_PIN(X)  ((uint32_t)(X) & 0xF)
-
 typedef enum {
-    PIN_INPUT,
-    PIN_OUTPUT
-} PinDirection;
+    ALT0  = 0x100,
+    ALT1  = 0x200,
+    ALT2  = 0x300,
+    ALT3  = 0x400
+} ALTx;
 
 typedef enum {
     PA_0  = 0x00,
@@ -84,7 +53,11 @@ typedef enum {
     PA_4  = 0x04,
     PA_5  = 0x05,
     PA_6  = 0x06,
+    PA_6_ALT0 = PA_6 | ALT0,
     PA_7  = 0x07,
+    PA_7_ALT0 = PA_7 | ALT0,
+    PA_7_ALT1 = PA_7 | ALT1,
+    PA_7_ALT2 = PA_7 | ALT2,
     PA_8  = 0x08,
     PA_9  = 0x09,
     PA_10 = 0x0A,
@@ -96,6 +69,8 @@ typedef enum {
 
     PB_0  = 0x10,
     PB_1  = 0x11,
+    PB_1_ALT0 = PB_1 | ALT0,
+    PB_1_ALT1 = PB_1 | ALT1,
     PB_2  = 0x12,
     PB_3  = 0x13,
     PB_4  = 0x14,
@@ -110,6 +85,8 @@ typedef enum {
     PB_13 = 0x1D,
     PB_14 = 0x1E,
     PB_15 = 0x1F,
+    PB_15_ALT0 = PB_15 | ALT0,
+    PB_15_ALT1 = PB_15 | ALT1,
 
     PC_0  = 0x20,
     PC_1  = 0x21,
@@ -122,7 +99,9 @@ typedef enum {
     PC_8  = 0x28,
     PC_9  = 0x29,
     PC_10 = 0x2A,
+    PC_10_ALT0 = PC_10 | ALT0,
     PC_11 = 0x2B,
+    PC_11_ALT0 = PC_11 | ALT0,
     PC_12 = 0x2C,
     PC_13 = 0x2D,
     PC_14 = 0x2E,
@@ -136,7 +115,6 @@ typedef enum {
     // ADC internal channels
     ADC_TEMP = 0xF0,
     ADC_VREF = 0xF1,
-    ADC_VBAT = 0xF2,
 
     // Arduino connector namings
     A0          = PA_0,
@@ -162,16 +140,30 @@ typedef enum {
     D14         = PB_9,
     D15         = PB_8,
 
+    // STDIO for console print
+#ifdef MBED_CONF_TARGET_STDIO_UART_TX
+    STDIO_UART_TX = MBED_CONF_TARGET_STDIO_UART_TX,
+#else
+    STDIO_UART_TX = PA_2,
+#endif
+#ifdef MBED_CONF_TARGET_STDIO_UART_RX
+    STDIO_UART_RX = MBED_CONF_TARGET_STDIO_UART_RX,
+#else
+    STDIO_UART_RX = PA_3,
+#endif
+
     // Generic signals namings
     LED1        = PA_5,
     LED2        = PA_5,
     LED3        = PA_5,
     LED4        = PA_5,
     USER_BUTTON = PC_13,
-    SERIAL_TX   = PA_2,
-    SERIAL_RX   = PA_3,
-    USBTX       = PA_2,
-    USBRX       = PA_3,
+    // Standardized button names
+    BUTTON1 = USER_BUTTON,
+    SERIAL_TX   = STDIO_UART_TX,
+    SERIAL_RX   = STDIO_UART_RX,
+    USBTX       = STDIO_UART_TX,
+    USBRX       = STDIO_UART_RX,
     I2C_SCL     = PB_8,
     I2C_SDA     = PB_9,
     SPI_MOSI    = PA_7,
@@ -180,17 +172,30 @@ typedef enum {
     SPI_CS      = PB_6,
     PWM_OUT     = PB_3,
 
+    /**** USB pins ****/
+    USB_DM = PA_11,
+    USB_DP = PA_12,
+    USB_NOE = PA_13,
+
+    /**** OSCILLATOR pins ****/
+    RCC_OSC32_IN = PC_14,
+    RCC_OSC32_OUT = PC_15,
+    RCC_OSC_IN = PF_0,
+    RCC_OSC_OUT = PF_1,
+
+    /**** DEBUG pins ****/
+    SYS_SWCLK = PA_14,
+    SYS_SWDIO = PA_13,
+    SYS_WKUP1 = PA_0,
+    SYS_WKUP2 = PC_13,
+    SYS_WKUP4 = PA_2,
+    SYS_WKUP5 = PC_5,
+    SYS_WKUP6 = PB_5,
+    SYS_WKUP7 = PB_15,
+
     // Not connected
     NC = (int)0xFFFFFFFF
 } PinName;
-
-typedef enum {
-    PullNone  = 0,
-    PullUp    = 1,
-    PullDown  = 2,
-    OpenDrain = 3,
-    PullDefault = PullNone
-} PinMode;
 
 #ifdef __cplusplus
 }

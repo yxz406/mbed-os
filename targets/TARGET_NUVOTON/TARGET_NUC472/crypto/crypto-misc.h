@@ -17,14 +17,77 @@
 #ifndef MBED_CRYPTO_MISC_H
 #define MBED_CRYPTO_MISC_H
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/* Init/Uninit crypto module */
 void crypto_init(void);
+void crypto_uninit(void);
+
+/* Clear buffer to zero
+ * Implementation that should never be optimized out by the compiler */
 void crypto_zeroize(void *v, size_t n);
-int crypto_sha_acquire(void);
+
+/* Acquire/release ownership of crypto sub-module
+ * 
+ * \note            "acquire" is blocking until ownership is acquired
+ *
+ * \note            "acquire"/"release" must be paired.
+ *
+ * \note            Recursive "acquire" is allowed because the underlying synchronization
+ *                  primitive mutex supports it.
+ */
+void crypto_aes_acquire(void);
+void crypto_aes_release(void);
+void crypto_des_acquire(void);
+void crypto_des_release(void);
+
+/* Acquire/release ownership of crypto sub-module
+ * 
+ * \return          false if crytpo sub-module is held by another thread or
+ *                  another mbedtls context.
+ *                  true if successful
+ *
+ * \note            Successful "try_acquire" and "release" must be paired.
+ */
+bool crypto_sha_try_acquire(void);
 void crypto_sha_release(void);
+
+/* Flow control between crypto/xxx start and crypto/xxx ISR 
+ *
+ * crypto_xxx_prestart/crypto_xxx_wait encapsulate control flow between crypto/xxx start and crypto/xxx ISR.
+ * 
+ * crypto_xxx_prestart will also address synchronization issue with memory barrier instruction.
+ *
+ * On finish, return of crypto_xxx_wait indicates success or not:
+ *   true if successful
+ *   false if failed
+ *
+ * Example: Start AES H/W and wait for its finish
+ *   crypto_aes_prestart();
+ *   AES_Start();
+ *   crypto_aes_wait();
+ */
+void crypto_prng_prestart(void);
+bool crypto_prng_wait(void);
+void crypto_aes_prestart(void);
+bool crypto_aes_wait(void);
+void crypto_des_prestart(void);
+bool crypto_des_wait(void);
+
+
+/* Check if buffer can be used for crypto DMA. It has the following requirements:
+ * (1) Word-aligned buffer base address
+ * (2) Crypto submodule (AES, DES, SHA, etc.) dependent buffer size alignment. Must be 2 power.
+ * (3) Located in 0x20000000-0x2FFFFFFF region
+ */
+bool crypto_dma_buff_compat(const void *buff, size_t buff_size, size_t size_aligned_to);
+
+/* Check if input/output buffers are overlapped */
+bool crypto_dma_buffs_overlap(const void *in_buff, size_t in_buff_size, const void *out_buff, size_t out_buff_size);
 
 #ifdef __cplusplus
 }

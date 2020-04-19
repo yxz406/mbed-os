@@ -31,44 +31,16 @@
 #define MBED_PINNAMES_H
 
 #include "cmsis.h"
+#include "PinNamesTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// See stm32f4xx_hal_gpio.h and stm32f4xx_hal_gpio_ex.h for values of MODE, PUPD and AFNUM
-#define STM_PIN_DATA(MODE, PUPD, AFNUM)  ((int)(((AFNUM & 0x0F) << 7) | ((PUPD & 0x07) << 4) | ((MODE & 0x0F) << 0)))
-#define STM_PIN_DATA_EXT(MODE, PUPD, AFNUM, CHANNEL, INVERTED)  ((int)(((INVERTED & 0x01) << 16) | ((CHANNEL & 0x1F) << 11) | ((AFNUM & 0x0F) << 7) | ((PUPD & 0x07) << 4) | ((MODE & 0x0F) << 0)))
-#define STM_PIN_MODE(X)   (((X) >> 0) & 0x0F)
-#define STM_PIN_PUPD(X)   (((X) >> 4) & 0x07)
-#define STM_PIN_AFNUM(X)  (((X) >> 7) & 0x0F)
-#define STM_PIN_CHANNEL(X)  (((X) >> 11) & 0x1F)
-#define STM_PIN_INVERTED(X) (((X) >> 16) & 0x01)
-#define STM_MODE_INPUT              (0)
-#define STM_MODE_OUTPUT_PP          (1)
-#define STM_MODE_OUTPUT_OD          (2)
-#define STM_MODE_AF_PP              (3)
-#define STM_MODE_AF_OD              (4)
-#define STM_MODE_ANALOG             (5)
-#define STM_MODE_IT_RISING          (6)
-#define STM_MODE_IT_FALLING         (7)
-#define STM_MODE_IT_RISING_FALLING  (8)
-#define STM_MODE_EVT_RISING         (9)
-#define STM_MODE_EVT_FALLING        (10)
-#define STM_MODE_EVT_RISING_FALLING (11)
-#define STM_MODE_IT_EVT_RESET       (12)
-
-// High nibble = port number (0=A, 1=B, 2=C, 3=D, 4=E, 5=F, 6=G, 7=H)
-// Low nibble  = pin number
-#define STM_PORT(X) (((uint32_t)(X) >> 4) & 0xF)
-#define STM_PIN(X)  ((uint32_t)(X) & 0xF)
-
 typedef enum {
-    PIN_INPUT,
-    PIN_OUTPUT
-} PinDirection;
+    // Not connected
+    NC = -1,
 
-typedef enum {
     PA_0  = 0x00,
     PA_1  = 0x01,
     PA_2  = 0x02,
@@ -172,15 +144,25 @@ typedef enum {
     RADIO_RX    = PC_6,
     RADIO_RTS   = PB_10,
     RADIO_CTS   = PB_12,
-    RADIO_DCD   = D5,
-    RADIO_DSR   = D8,
-    RADIO_DTR   = D4,
-    RADIO_RI    = D9,
+    RADIO_DCD   = NC,
+    RADIO_DSR   = NC,
+    RADIO_DTR   = NC,
+    RADIO_RI    = NC,
+    MDMPWRON  = PC_13, // 3G_ONOFF DragonFly Design Guide, Page No. 16
+    MDMTXD = RADIO_TX, // Transmit Data
+    MDMRXD = RADIO_RX, // Receive Data
+    MDMRTS = RADIO_RTS, // Request to Send
+    MDMCTS = RADIO_CTS, // Clear to Send
+    MDMDCD = RADIO_DCD, // Data Carrier Detect
+    MDMDSR = RADIO_DSR, // Data Set Ready
+    MDMDTR = RADIO_DTR, // Data Terminal Ready
+    MDMRI  = RADIO_RI, // Ring Indicator
+
     WAKEUP      = D3,
 
     // I2C1 and I2C3 are available on Arduino pins
     I2C1_SCL    = D15,
-    I2C1_SDA    = D14,     
+    I2C1_SDA    = D14,
     I2C3_SCL    = D7,
     I2C3_SDA    = A5,
 
@@ -206,19 +188,15 @@ typedef enum {
     SPI_MISO    = SPI3_MISO,
     SPI_SCK     = SPI3_SCK,
     SPI_CS1     = PA_4,
-    SPI_CS2     = PB_14,
+    SPI_CS2     = PB_14
 
-    // Not connected
-    NC = (int)0xFFFFFFFF
 } PinName;
 
-typedef enum {
-    PullNone  = 0,
-    PullUp    = 1,
-    PullDown  = 2,
-    OpenDrain = 3,
-    PullDefault = PullNone
-} PinMode;
+#define ACTIVE_HIGH_POLARITY    1
+#define ACTIVE_LOW_POLARITY     0
+
+#define MDM_PIN_POLARITY        ACTIVE_HIGH_POLARITY
+
 
 #ifdef __cplusplus
 }

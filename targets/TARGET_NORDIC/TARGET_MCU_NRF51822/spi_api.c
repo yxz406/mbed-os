@@ -30,6 +30,40 @@ volatile uint8_t m_rx_buf[SPIS_MESSAGE_SIZE] = {0};
 extern volatile i2c_spi_peripheral_t i2c0_spi0_peripheral; // from i2c_api.c
 extern volatile i2c_spi_peripheral_t i2c1_spi1_peripheral;
 
+// Pinmap used for testing only
+static const PinMap PinMap_SPI_testing[] = {
+    {P0_0,  0, 0},
+    {P0_1,  0, 0},
+    {P0_2,  0, 0},
+    {P0_3,  0, 0},
+    {P0_4,  0, 0},
+    {P0_5,  0, 0},
+    {P0_6,  0, 0},
+    {P0_7,  0, 0},
+    {P0_8,  0, 0},
+    {P0_9,  0, 0},
+    {P0_10,  0, 0},
+    {P0_11,  0, 0},
+    {P0_12,  0, 0},
+    {P0_13,  0, 0},
+    {P0_14,  0, 0},
+    {P0_15,  0, 0},
+    {P0_16,  0, 0},
+    {P0_17,  0, 0},
+    {P0_18,  0, 0},
+    {P0_19,  0, 0},
+    {P0_20,  0, 0},
+    {P0_21,  0, 0},
+    {P0_22,  0, 0},
+    {P0_23,  0, 0},
+    {P0_24,  0, 0},
+    {P0_25,  0, 0},
+    {P0_28,  0, 0},
+    {P0_29,  0, 0},
+    {P0_30,  0, 0},
+    {NC, NC, 0}
+};
+
 void spi_init(spi_t *obj, PinName mosi, PinName miso, PinName sclk, PinName ssel)
 {
     SPIName spi = SPI_0;
@@ -263,6 +297,21 @@ int spi_master_write(spi_t *obj, int value)
     return spi_read(obj);
 }
 
+int spi_master_block_write(spi_t *obj, const char *tx_buffer, int tx_length,
+                           char *rx_buffer, int rx_length, char write_fill) {
+    int total = (tx_length > rx_length) ? tx_length : rx_length;
+
+    for (int i = 0; i < total; i++) {
+        char out = (i < tx_length) ? tx_buffer[i] : write_fill;
+        char in = spi_master_write(obj, out);
+        if (i < rx_length) {
+            rx_buffer[i] = in;
+        }
+    }
+
+    return total;
+}
+
 //static inline int spis_writeable(spi_t *obj) {
 //    return (obj->spis->EVENTS_ACQUIRED==1);
 //}
@@ -283,4 +332,44 @@ void spi_slave_write(spi_t *obj, int value)
     obj->spis->TASKS_RELEASE   = 1;
     obj->spis->EVENTS_ACQUIRED = 0;
     obj->spis->EVENTS_END      = 0;
+}
+
+const PinMap *spi_master_mosi_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_master_miso_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_master_clk_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_master_cs_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_slave_mosi_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_slave_miso_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_slave_clk_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_slave_cs_pinmap()
+{
+    return PinMap_SPI_testing;
 }

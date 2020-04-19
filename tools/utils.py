@@ -1,6 +1,7 @@
 """
 mbed SDK
 Copyright (c) 2011-2013 ARM Limited
+SPDX-License-Identifier: Apache-2.0
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,6 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+from __future__ import print_function, division, absolute_import
 import sys
 import inspect
 import os
@@ -28,6 +30,13 @@ from math import ceil
 import json
 from collections import OrderedDict
 import logging
+from intelhex import IntelHex
+import io
+
+try:
+    unicode
+except NameError:
+    unicode = str
 
 def remove_if_in(lst, thing):
     if thing in lst:
@@ -65,14 +74,14 @@ def cmd(command, check=True, verbose=False, shell=False, cwd=None):
     """A wrapper to run a command as a blocking job"""
     text = command if shell else ' '.join(command)
     if verbose:
-        print text
+        print(text)
     return_code = call(command, shell=shell, cwd=cwd)
     if check and return_code != 0:
         raise Exception('ERROR %d: "%s"' % (return_code, text))
 
 
 def run_cmd(command, work_dir=None, chroot=None, redirect=False):
-    """Run a command in the forground
+    """Run a command in the foreground
 
     Positional arguments:
     command - the command to run
@@ -96,10 +105,11 @@ def run_cmd(command, work_dir=None, chroot=None, redirect=False):
 
     try:
         process = Popen(command, stdout=PIPE,
-                        stderr=STDOUT if redirect else PIPE, cwd=work_dir)
+                        stderr=STDOUT if redirect else PIPE, cwd=work_dir,
+                        universal_newlines=True)
         _stdout, _stderr = process.communicate()
     except OSError:
-        print "[OS ERROR] Command: "+(' '.join(command))
+        print("[OS ERROR] Command: "+(' '.join(command)))
         raise
 
     return _stdout, _stderr, process.returncode
@@ -172,6 +182,27 @@ def mkdir(path):
         makedirs(path)
 
 
+def write_json_to_file(json_data, file_name):
+    """
+    Write json content in file
+    :param json_data:
+    :param file_name:
+    :return:
+    """
+    # Create the target dir for file if necessary
+    test_spec_dir = os.path.dirname(file_name)
+
+    if test_spec_dir:
+        mkdir(test_spec_dir)
+
+    try:
+        with open(file_name, 'w') as f:
+            f.write(json.dumps(json_data, indent=2))
+    except IOError as e:
+        print("[ERROR] Error writing test spec to file")
+        print(e)
+
+
 def copy_file(src, dst):
     """ Implement the behaviour of "shutil.copy(src, dst)" without copying the
     permissions (this was causing errors with directories mounted with samba)
@@ -183,6 +214,23 @@ def copy_file(src, dst):
     if isdir(dst):
         _, base = split(src)
         dst = join(dst, base)
+    copyfile(src, dst)
+
+
+def copy_when_different(src, dst):
+    """ Only copy the file when it's different from its destination.
+
+    Positional arguments:
+    src - the source of the copy operation
+    dst - the destination of the copy operation
+    """
+    if isdir(dst):
+        _, base = split(src)
+        dst = join(dst, base)
+    if exists(dst):
+        with open(src, 'rb') as srcfd, open(dst, 'rb') as dstfd:
+            if srcfd.read() == dstfd.read():
+                return
     copyfile(src, dst)
 
 
@@ -198,7 +246,7 @@ def delete_dir_files(directory):
     for element in listdir(directory):
         to_remove = join(directory, element)
         if not isdir(to_remove):
-            remove(file)
+            remove(to_remove)
 
 
 def get_caller_name(steps=2):
@@ -249,6 +297,11 @@ class NotSupportedException(Exception):
 class InvalidReleaseTargetException(Exception):
     pass
 
+class NoValidToolchainException(Exception):
+    """A class representing no valid toolchain configurations found on
+    the system"""
+    pass
+
 def split_path(path):
     """spilt a file name into it's directory name, base name, and extension
 
@@ -287,8 +340,7 @@ def args_error(parser, message):
     parser - the ArgumentParser object that parsed the command line
     message - what went wrong
     """
-    parser.error(message)
-    sys.exit(2)
+    parser.exit(status=2, message=message+'\n')
 
 
 def construct_enum(**enums):
@@ -317,37 +369,36 @@ def check_required_modules(required_modules, verbose=True):
             except ImportError as exc:
                 not_installed_modules.append(module_name)
                 if verbose:
-                    print "Error: %s" % exc
+                    print("Error: %s" % exc)
 
     if verbose:
         if not_installed_modules:
-            print ("Warning: Module(s) %s not installed. Please install " + \
-                   "required module(s) before using this script.")\
-                % (', '.join(not_installed_modules))
+            print("Warning: Module(s) %s not installed. Please install "
+                  "required module(s) before using this script."
+                  % (', '.join(not_installed_modules)))
 
     if not_installed_modules:
         return False
     else:
         return True
 
-def dict_to_ascii(dictionary):
-    """ Utility function: traverse a dictionary and change all the strings in
-    the dictionary to ASCII from Unicode. Useful when reading ASCII JSON data,
-    because the JSON decoder always returns Unicode string. Based on
-    http://stackoverflow.com/a/13105359
 
-    Positional arguments:
-    dictionary - The dict that contains some Unicode that should be ASCII
-    """
-    if isinstance(dictionary, dict):
-        return OrderedDict([(dict_to_ascii(key), dict_to_ascii(value))
-                            for key, value in dictionary.iteritems()])
-    elif isinstance(dictionary, list):
-        return [dict_to_ascii(element) for element in dictionary]
-    elif isinstance(dictionary, unicode):
-        return dictionary.encode('ascii')
-    else:
-        return dictionary
+def _ordered_dict_collapse_dups(pair_list):
+    to_ret = OrderedDict()
+    for key, value in pair_list:
+        if key in to_ret:
+            if isinstance(to_ret[key], dict):
+                to_ret[key].update(value)
+            elif isinstance(to_ret[key], list):
+                to_ret[key].extend(value)
+            else:
+                raise ValueError(
+                    "Key %s found twice and is not mergeable" % key
+                )
+        else:
+            to_ret[key] = value
+    return to_ret
+
 
 def json_file_to_dict(fname):
     """ Read a JSON file and return its Python representation, transforming all
@@ -358,11 +409,13 @@ def json_file_to_dict(fname):
     fname - the name of the file to parse
     """
     try:
-        with open(fname, "r") as file_obj:
-            return dict_to_ascii(json.load(file_obj,
-                                           object_pairs_hook=OrderedDict))
-    except (ValueError, IOError):
-        sys.stderr.write("Error parsing '%s':\n" % fname)
+        with io.open(fname, encoding='ascii',
+                     errors='ignore') as file_obj:
+            return json.load(
+                file_obj,  object_pairs_hook=_ordered_dict_collapse_dups
+            )
+    except (ValueError, IOError) as e:
+        sys.stderr.write("Error parsing '%s': %s\n" % (fname, e))
         raise
 
 # Wowza, double closure
@@ -374,6 +427,8 @@ def argparse_type(casedness, prefer_hyphen=False):
             the string, or the hyphens/underscores do not match the expected
             style of the argument.
             """
+            if not isinstance(string, unicode):
+                string = string.decode()
             if prefer_hyphen:
                 newstring = casedness(string).replace("_", "-")
             else:
@@ -392,10 +447,10 @@ def argparse_type(casedness, prefer_hyphen=False):
     return middle
 
 # short cuts for the argparse_type versions
-argparse_uppercase_type = argparse_type(str.upper, False)
-argparse_lowercase_type = argparse_type(str.lower, False)
-argparse_uppercase_hyphen_type = argparse_type(str.upper, True)
-argparse_lowercase_hyphen_type = argparse_type(str.lower, True)
+argparse_uppercase_type = argparse_type(unicode.upper, False)
+argparse_lowercase_type = argparse_type(unicode.lower, False)
+argparse_uppercase_hyphen_type = argparse_type(unicode.upper, True)
+argparse_lowercase_hyphen_type = argparse_type(unicode.lower, True)
 
 def argparse_force_type(case):
     """ validate that an argument passed in (as string) is a member of the list
@@ -403,8 +458,12 @@ def argparse_force_type(case):
     """
     def middle(lst, type_name):
         """ The parser type generator"""
+        if not isinstance(lst[0], unicode):
+            lst = [o.decode() for o in lst]
         def parse_type(string):
             """ The parser type"""
+            if not isinstance(string, unicode):
+                string = string.decode()
             for option in lst:
                 if case(string) == case(option):
                     return option
@@ -415,8 +474,8 @@ def argparse_force_type(case):
     return middle
 
 # these two types convert the case of their arguments _before_ validation
-argparse_force_uppercase_type = argparse_force_type(str.upper)
-argparse_force_lowercase_type = argparse_force_type(str.lower)
+argparse_force_uppercase_type = argparse_force_type(unicode.upper)
+argparse_force_lowercase_type = argparse_force_type(unicode.lower)
 
 def argparse_many(func):
     """ An argument parser combinator that takes in an argument parser and
@@ -441,10 +500,12 @@ def argparse_profile_filestring_type(string):
     absolute path or a file name (expanded to
     mbed-os/tools/profiles/<fname>.json) of a existing file"""
     fpath = join(dirname(__file__), "profiles/{}.json".format(string))
-    if exists(string):
-        return string
-    elif exists(fpath):
+
+    # default profiles are searched first, local ones next.
+    if exists(fpath):
         return fpath
+    elif exists(string):
+        return string
     else:
         raise argparse.ArgumentTypeError(
             "{0} does not exist in the filesystem.".format(string))
@@ -488,6 +549,13 @@ def argparse_dir_not_parent(other):
             return not_parent
     return parse_type
 
+def argparse_deprecate(replacement_message):
+    """fail if argument is provided with deprecation warning"""
+    def parse_type(_):
+        """The parser type"""
+        raise argparse.ArgumentTypeError("Deprecated." + replacement_message)
+    return parse_type
+
 def print_large_string(large_string):
     """ Breaks a string up into smaller pieces before print them
 
@@ -503,7 +571,47 @@ def print_large_string(large_string):
     for string_part in range(num_parts):
         start_index = string_part * string_limit
         if string_part == num_parts - 1:
-            print large_string[start_index:]
+            sys.stdout.write(large_string[start_index:])
         else:
-            end_index = ((string_part + 1) * string_limit) - 1
-            print large_string[start_index:end_index],
+            sys.stdout.write(large_string[start_index:
+                                          start_index + string_limit])
+    sys.stdout.write("\n")
+
+def intelhex_offset(filename, offset):
+    """Load a hex or bin file at a particular offset"""
+    _, inteltype = splitext(filename)
+    ih = IntelHex()
+    if inteltype == ".bin":
+        ih.loadbin(filename, offset=offset)
+    elif inteltype == ".hex":
+        ih.loadhex(filename)
+    else:
+        raise ToolException("File %s does not have a known binary file type"
+                            % filename)
+    return ih
+
+def integer(maybe_string, base):
+    """Make an integer of a number or a string"""
+    if isinstance(maybe_string, int):
+        return maybe_string
+    else:
+        return int(maybe_string, base)
+
+def generate_update_filename(name, target):
+    return "%s_update.%s" % (
+                    name,
+                    getattr(target, "OUTPUT_EXT_UPDATE", "bin")
+                )
+
+def print_end_warnings(end_warnings):
+    """ Print a formatted list of warnings
+
+    Positional arguments:
+    end_warnings - A list of warnings (strings) to print
+    """
+    if end_warnings:
+        warning_separator = "-" * 60
+        print(warning_separator)
+        for end_warning in end_warnings:
+            print(end_warning)
+        print(warning_separator)

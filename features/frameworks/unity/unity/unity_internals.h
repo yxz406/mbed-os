@@ -227,6 +227,7 @@ typedef _US64 _U_SINT;
 #endif
 typedef UNITY_FLOAT_TYPE _UF;
 
+#if !defined(__ARMCC_VERSION)
 #ifndef isinf
 #define isinf(n) (((1.0f / f_zero) == n) ? 1 : 0) || (((-1.0f / f_zero) == n) ? 1 : 0)
 #define UNITY_FLOAT_NEEDS_ZERO
@@ -235,6 +236,8 @@ typedef UNITY_FLOAT_TYPE _UF;
 #ifndef isnan
 #define isnan(n) ((n != n) ? 1 : 0)
 #endif
+
+#endif /* ARMC6 */
 
 #ifndef isneg
 #define isneg(n) ((n < 0.0f) ? 1 : 0)
@@ -549,6 +552,8 @@ void UnityFail(const char* message, const UNITY_LINE_TYPE line);
 
 void UnityIgnore(const char* message, const UNITY_LINE_TYPE line);
 
+void UnitySkipPrint(const char* message, const UNITY_LINE_TYPE line);
+
 #ifndef UNITY_EXCLUDE_FLOAT
 void UnityAssertFloatsWithin(const _UF delta,
                              const _UF expected,
@@ -779,6 +784,13 @@ extern const char UnityStrErr64[];
 #define UNITY_TEST_ASSERT_DOUBLE_IS_NOT_NAN(actual, line, message)                               UnityAssertDoubleSpecial((_UD)(actual), (message), (UNITY_LINE_TYPE)(line), UNITY_FLOAT_IS_NOT_NAN)
 #define UNITY_TEST_ASSERT_DOUBLE_IS_NOT_DETERMINATE(actual, line, message)                       UnityAssertDoubleSpecial((_UD)(actual), (message), (UNITY_LINE_TYPE)(line), UNITY_FLOAT_IS_NOT_DET)
 #endif
+
+/*-------------------------------------------------------
+ * Test skip
+ *-------------------------------------------------------*/
+
+#define UNITY_TEST_SKIP(line, message)                                                           { UnitySkipPrint( (message), (UNITY_LINE_TYPE)(line)); return; }
+#define UNITY_TEST_SKIP_UNLESS(condition, line, message)                                         if (!(condition)) UNITY_TEST_SKIP((line), (message))
 
 /* End of UNITY_INTERNALS_H */
 #endif

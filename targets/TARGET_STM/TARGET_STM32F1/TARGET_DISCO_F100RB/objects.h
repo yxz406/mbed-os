@@ -49,24 +49,12 @@ struct gpio_irq_s {
 struct port_s {
     PortName port;
     uint32_t mask;
-    PinDirection direction;  
+    PinDirection direction;
     __IO uint32_t *reg_in;
     __IO uint32_t *reg_out;
 };
 
-struct analogin_s {
-    ADCName adc;
-    PinName pin;
-    uint8_t channel;
-};
-
-struct i2c_s {
-    I2CName  i2c;
-    uint32_t slave;
-};
-
 #include "common_objects.h"
-#include "gpio_object.h"
 
 #ifdef __cplusplus
 }

@@ -31,50 +31,11 @@
 #define MBED_PINNAMES_H
 
 #include "cmsis.h"
+#include "PinNamesTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define STM_PIN_DATA(MODE, PUPD, AFNUM)  ((int)(((MODE  & 0x0F) << 0) |\
-                                                ((PUPD  & 0x07) << 4) |\
-                                                ((AFNUM & 0x0F) << 7)))
-
-#define STM_PIN_DATA_EXT(MODE, PUPD, AFNUM, CHANNEL, INVERTED)  ((int)(((MODE     & 0x0F) <<  0) |\
-                                                                       ((PUPD     & 0x07) <<  4) |\
-                                                                       ((AFNUM    & 0x0F) <<  7) |\
-                                                                       ((CHANNEL  & 0x1F) << 11) |\
-                                                                       ((INVERTED & 0x01) << 16)))
-
-#define STM_PIN_MODE(X)     (((X) >>  0) & 0x0F)
-#define STM_PIN_PUPD(X)     (((X) >>  4) & 0x07)
-#define STM_PIN_AFNUM(X)    (((X) >>  7) & 0x0F)
-#define STM_PIN_CHANNEL(X)  (((X) >> 11) & 0x1F)
-#define STM_PIN_INVERTED(X) (((X) >> 16) & 0x01)
-
-#define STM_MODE_INPUT              (0)
-#define STM_MODE_OUTPUT_PP          (1)
-#define STM_MODE_OUTPUT_OD          (2)
-#define STM_MODE_AF_PP              (3)
-#define STM_MODE_AF_OD              (4)
-#define STM_MODE_ANALOG             (5)
-#define STM_MODE_IT_RISING          (6)
-#define STM_MODE_IT_FALLING         (7)
-#define STM_MODE_IT_RISING_FALLING  (8)
-#define STM_MODE_EVT_RISING         (9)
-#define STM_MODE_EVT_FALLING        (10)
-#define STM_MODE_EVT_RISING_FALLING (11)
-#define STM_MODE_IT_EVT_RESET       (12)
-
-// High nibble = port number (0=A, 1=B, 2=C, 3=D, 4=E, 5=F, 6=G, 7=H)
-// Low nibble  = pin number
-#define STM_PORT(X) (((uint32_t)(X) >> 4) & 0xF)
-#define STM_PIN(X)  ((uint32_t)(X) & 0xF)
-
-typedef enum {
-    PIN_INPUT,
-    PIN_OUTPUT
-} PinDirection;
 
 typedef enum {
     PA_0  = 0x00,
@@ -190,7 +151,7 @@ typedef enum {
 
     I2C_SCL         = I2C1_SCL,
     I2C_SDA         = I2C1_SDA,
-    
+
     // LoRa
     LORA_RESET      = PA_1,
     LORA_MOSI       = PB_5,
@@ -209,17 +170,25 @@ typedef enum {
     SE_IO           = PB_10,
     SE_CLK          = PB_11,
 
+#ifdef TARGET_FF1705_L151CC
+    // Arduino Headers
+    A0  = PA_0,
+    A1  = PB_0,
+    D0  = PA_10,
+    D1  = PA_9,
+    D2  = PA_11,
+    D3  = PA_12,
+    D10 = PB_12,
+    D11 = PB_15,
+    D12 = PB_14,
+    D13 = PB_13,
+    D14 = I2C_SDA,
+    D15 = I2C_SCL,
+#endif
+
     // Not connected
     NC = (int)0xFFFFFFFF
 } PinName;
-
-typedef enum {
-    PullNone  = 0,
-    PullUp    = 1,
-    PullDown  = 2,
-    OpenDrain = 3,
-    PullDefault = PullNone
-} PinMode;
 
 #ifdef __cplusplus
 }

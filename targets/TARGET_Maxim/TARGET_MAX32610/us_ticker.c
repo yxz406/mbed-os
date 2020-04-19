@@ -234,6 +234,13 @@ void us_ticker_set_interrupt(timestamp_t timestamp)
     US_TIMER->ctrl |= MXC_F_TMR_CTRL_ENABLE0;   // enable timer
 }
 
+void us_ticker_fire_interrupt(void)
+{
+    US_TIMER->ctrl &= ~MXC_F_TMR_CTRL_ENABLE0;  // disable timer
+    US_TIMER->term_cnt32 = 1;
+    US_TIMER->ctrl |= MXC_F_TMR_CTRL_ENABLE0;   // enable timer
+}
+
 //******************************************************************************
 void us_ticker_disable_interrupt(void)
 {
@@ -260,4 +267,9 @@ void us_ticker_set(timestamp_t timestamp)
         // The next timestamp has elapsed. Trigger the interrupt to handle it.
         NVIC_SetPendingIRQ(US_TIMER_IRQn);
     }
+}
+
+void us_ticker_free(void)
+{
+
 }

@@ -3,6 +3,7 @@
 /** @{*/
 /* mbed Microcontroller Library
  * Copyright (c) 2006-2013 ARM Limited
+ * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +26,12 @@
 extern "C" {
 #endif
 
+/**
+ *
+ * \enum    CANFormat
+ *
+ * \brief   Values that represent CAN Format
+**/
 enum CANFormat {
     CANStandard = 0,
     CANExtended = 1,
@@ -32,23 +39,36 @@ enum CANFormat {
 };
 typedef enum CANFormat CANFormat;
 
+/**
+ *
+ * \enum    CANType
+ *
+ * \brief   Values that represent CAN Type
+**/
 enum CANType {
     CANData   = 0,
     CANRemote = 1
 };
 typedef enum CANType CANType;
 
+/**
+ *
+ * \struct  CAN_Message
+ *
+ * \brief   Holder for single CAN message.
+ *
+**/
 struct CAN_Message {
     unsigned int   id;                 // 29 bit identifier
     unsigned char  data[8];            // Data field
     unsigned char  len;                // Length of data field in bytes
-    CANFormat      format;             // 0 - STANDARD, 1- EXTENDED IDENTIFIER
-    CANType        type;               // 0 - DATA FRAME, 1 - REMOTE FRAME
+    CANFormat      format;             // Format ::CANFormat
+    CANType        type;               // Type ::CANType
 };
 typedef struct CAN_Message CAN_Message;
 
 #ifdef __cplusplus
-};
+}
 #endif
 
 #endif

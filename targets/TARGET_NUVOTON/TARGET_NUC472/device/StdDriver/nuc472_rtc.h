@@ -129,7 +129,7 @@ typedef struct {
  *            1 = This year is a leap year.
  * \hideinitializer 
  */
-#define RTC_IS_LEAP_YEAR    ((RTC->LEAPYEAR & (RTC_LEAPYEAR_LEAPYEAR_Msk))?1:0)
+#define RTC_IS_LEAP_YEAR()    ((RTC->LEAPYEAR & (RTC_LEAPYEAR_LEAPYEAR_Msk))?1:0)
 
 /**
  *  @brief    Clear alarm interrupt status.
@@ -139,7 +139,7 @@ typedef struct {
  *  @return   None
  * \hideinitializer 
  */
-#define RTC_CLEAR_ALARM_INT_FLAG    (RTC->INTSTS = RTC_INTSTS_ALMIF_Msk)
+#define RTC_CLEAR_ALARM_INT_FLAG()    (RTC->INTSTS = RTC_INTSTS_ALMIF_Msk)
 
 /**
  *  @brief    Clear tick interrupt status.
@@ -149,7 +149,7 @@ typedef struct {
  *  @return    None
  * \hideinitializer 
  */
-#define RTC_CLEAR_TICK_INT_FLAG    (RTC->INTSTS = RTC_INTSTS_TICKIF_Msk)
+#define RTC_CLEAR_TICK_INT_FLAG()    (RTC->INTSTS = RTC_INTSTS_TICKIF_Msk)
 
 /**
  *  @brief    Clear tamper detect pin status.
@@ -169,7 +169,7 @@ typedef struct {
  *  @return   Alarm interrupt status
  * \hideinitializer 
  */
-#define RTC_GET_ALARM_INT_FLAG    ((RTC->INTSTS & RTC_INTSTS_ALMIF_Msk) >> RTC_INTSTS_ALMIF_Pos)
+#define RTC_GET_ALARM_INT_FLAG()    ((RTC->INTSTS & RTC_INTSTS_ALMIF_Msk) >> RTC_INTSTS_ALMIF_Pos)
 
 /**
  *  @brief    Get alarm interrupt status.
@@ -179,7 +179,7 @@ typedef struct {
  *  @return   Alarm interrupt status
  * \hideinitializer 
  */
-#define RTC_GET_TICK_INT_FLAG    ((RTC->INTSTS & RTC_INTSTS_TICKIF_Msk) >> RTC_INTSTS_TICKIF_Pos)
+#define RTC_GET_TICK_INT_FLAG()    ((RTC->INTSTS & RTC_INTSTS_TICKIF_Msk) >> RTC_INTSTS_TICKIF_Pos)
 
 /**
  *  @brief    Get tamper detect pin status.
@@ -191,7 +191,23 @@ typedef struct {
  */
 #define RTC_GET_TAMPER_FLAG(u32PinNum)    ( (RTC->TAMPSTS & (1 << u32PinNum)) >> u32PinNum)
 
+/* Declare these inline functions here to avoid MISRA C 2004 rule 8.1 error */
+static __INLINE void RTC_WaitAccessEnable(void);
 
+/**
+  * @brief      Wait RTC Access Enable
+  *
+  * @param      None
+  *
+  * @return     None
+  *
+  * @details    This function is used to enable the maximum RTC read/write accessible time.
+  */
+static __INLINE void RTC_WaitAccessEnable(void)
+{
+    RTC->RWEN = RTC_WRITE_KEY;
+    while(!(RTC->RWEN & RTC_RWEN_RWENF_Msk));
+}
 
 void RTC_Open(S_RTC_TIME_DATA_T *sPt);
 void RTC_Close(void);

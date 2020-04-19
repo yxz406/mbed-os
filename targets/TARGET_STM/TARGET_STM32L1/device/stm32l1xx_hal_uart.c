@@ -2,8 +2,6 @@
   ******************************************************************************
   * @file    stm32l1xx_hal_uart.c
   * @author  MCD Application Team
-  * @version V1.2.0
-  * @date    01-July-2016
   * @brief   UART HAL module driver.
   *          This file provides firmware functions to manage the following 
   *          functionalities of the Universal Asynchronous Receiver Transmitter (UART) peripheral:
@@ -127,7 +125,7 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT(c) 2016 STMicroelectronics</center></h2>
+  * <h2><center>&copy; COPYRIGHT(c) 2017 STMicroelectronics</center></h2>
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -1906,7 +1904,7 @@ static void UART_SetConfig(UART_HandleTypeDef *huart)
   if(huart->Init.OverSampling == UART_OVERSAMPLING_8)
   {
     /*------- UART-associated USART registers setting : BRR Configuration ------*/
-    if((huart->Instance == USART1))
+    if(huart->Instance == USART1)
     {
       huart->Instance->BRR = UART_BRR_SAMPLING8(HAL_RCC_GetPCLK2Freq(), huart->Init.BaudRate);
     }
@@ -1918,7 +1916,7 @@ static void UART_SetConfig(UART_HandleTypeDef *huart)
   else
   {
     /*------- UART-associated USART registers setting : BRR Configuration ------*/
-    if((huart->Instance == USART1))
+    if(huart->Instance == USART1)
     {
       huart->Instance->BRR = UART_BRR_SAMPLING16(HAL_RCC_GetPCLK2Freq(), huart->Init.BaudRate);
     }

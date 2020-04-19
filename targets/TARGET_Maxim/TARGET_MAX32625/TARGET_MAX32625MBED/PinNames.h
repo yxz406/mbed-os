@@ -60,7 +60,7 @@ typedef enum {
     P4_0 = (4 << PORT_SHIFT), P4_1, P4_2, P4_3, P4_4, P4_5, P4_6, P4_7,
 
     // Analog input pins
-    AIN_0 = (0xA << PORT_SHIFT), AIN_1, AIN_2, AIN_3, AIN_4, AIN_5,
+    AIN_0 = (0xA << PORT_SHIFT), AIN_1, AIN_2, AIN_3, AIN_4, AIN_5, AIN_6, AIN_7, AIN_8, AIN_9,
 
     LED_GREEN  = P3_1,
     LED_RED    = P3_0,
@@ -76,6 +76,9 @@ typedef enum {
     // Push button
     SW2 = P2_2,
     SW3 = P2_3,
+    // Standardized button names
+    BUTTON1 = SW2,
+    BUTTON2 = SW3,
 
     // USB bridge connected UART pins
     USBTX = P2_1,

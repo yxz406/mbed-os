@@ -17,7 +17,14 @@
 #include "cmsis.h"
 #include "mbed_interface.h"
 
-void sleep(void) {
+/*
+ * @note
+ *  The mbed interface semihosting is disconnected as part of going to sleep, and can not be restored.
+ * Flash re-programming and the USB serial port will remain active, but the mbed program will no longer be
+ * able to access the LocalFileSystem
+ */
+
+void hal_sleep(void) {
 
 #if (DEVICE_SEMIHOST == 1)
     // ensure debug is disconnected
@@ -60,7 +67,7 @@ void sleep(void) {
 *       We treat a deepsleep() as a normal sleep().
 */
 
-void deepsleep(void) {
+void hal_deepsleep(void) {
 
 #if (DEVICE_SEMIHOST == 1)
     // ensure debug is disconnected
@@ -68,5 +75,5 @@ void deepsleep(void) {
 #endif
     
     // PCON[PD] set to deepsleep
-    sleep();
+    hal_sleep();
 }

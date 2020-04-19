@@ -9,16 +9,30 @@
 /* Version 4.2.0 */
 /*                                                                  */
 
+#if !defined(MBED_APP_START)
+  #define MBED_APP_START 0x00000000
+#endif
+
+#if !defined(MBED_APP_SIZE)
+  #define MBED_APP_SIZE 65536
+#endif
+
+#if !defined(MBED_BOOT_STACK_SIZE)
+    #define MBED_BOOT_STACK_SIZE 0x400
+#endif
+
+STACK_SIZE = MBED_BOOT_STACK_SIZE;
+
 MEMORY
 {
-  FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 65536
+  FLASH (rx) : ORIGIN = MBED_APP_START, LENGTH = MBED_APP_SIZE
   RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 8192
 }
 
 /* MBED: mbed needs to be able to dynamically set the interrupt vector table.
  * We make room for the table at the very beginning of RAM, i.e. at
- * 0x20000000. We need (16+21) * sizeof(uint32_t) = 148 bytes for EFM32HG */
-__vector_size = 0x94;
+ * 0x20000000. We need (16+21) * sizeof(uint32_t) = 148+4(8-byte aligned) bytes for EFM32HG */
+__vector_size = 0x98;
 
 /* Linker script to place sections and symbol values. Should be used together
  * with other linker script that defines memory regions FLASH and RAM.
@@ -105,7 +119,7 @@ SECTIONS
   /*
   .copy.table :
   {
-    . = ALIGN(4);
+    . = ALIGN(8);
     __copy_table_start__ = .;
     LONG (__etext)
     LONG (__data_start__)
@@ -123,7 +137,7 @@ SECTIONS
   /*
   .zero.table :
   {
-    . = ALIGN(4);
+    . = ALIGN(8);
     __zero_table_start__ = .;
     LONG (__bss_start__)
     LONG (__bss_end__ - __bss_start__)
@@ -144,23 +158,23 @@ SECTIONS
     PROVIDE( __end_vector_table__ = .);
     *(vtable)
     *(.data*)
-    . = ALIGN (4);
+    . = ALIGN (8);
     *(.ram)
 
-    . = ALIGN(4);
+    . = ALIGN(8);
     /* preinit data */
     PROVIDE_HIDDEN (__preinit_array_start = .);
     KEEP(*(.preinit_array))
     PROVIDE_HIDDEN (__preinit_array_end = .);
 
-    . = ALIGN(4);
+    . = ALIGN(8);
     /* init data */
     PROVIDE_HIDDEN (__init_array_start = .);
     KEEP(*(SORT(.init_array.*)))
     KEEP(*(.init_array))
     PROVIDE_HIDDEN (__init_array_end = .);
 
-    . = ALIGN(4);
+    . = ALIGN(8);
     /* finit data */
     PROVIDE_HIDDEN (__fini_array_start = .);
     KEEP(*(SORT(.fini_array.*)))
@@ -168,7 +182,7 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
 
     KEEP(*(.jcr*))
-    . = ALIGN(4);
+    . = ALIGN(8);
     /* All data end */
     __data_end__ = .;
 
@@ -176,11 +190,11 @@ SECTIONS
 
   .bss :
   {
-    . = ALIGN(4);
+    . = ALIGN(8);
     __bss_start__ = .;
     *(.bss*)
     *(COMMON)
-    . = ALIGN(4);
+    . = ALIGN(8);
     __bss_end__ = .;
   } > RAM
 
@@ -191,6 +205,7 @@ SECTIONS
     end = __end__;
     _end = __end__;
     KEEP(*(.heap*))
+    . = ORIGIN(RAM) + LENGTH(RAM) - STACK_SIZE;
     __HeapLimit = .;
   } > RAM
 
@@ -205,7 +220,7 @@ SECTIONS
   /* Set stack top to end of RAM, and stack limit move down by
    * size of stack_dummy section */
   __StackTop = ORIGIN(RAM) + LENGTH(RAM);
-  __StackLimit = __StackTop - SIZEOF(.stack_dummy);
+  __StackLimit = __StackTop - STACK_SIZE;
   PROVIDE(__stack = __StackTop);
 
   /* Check if data + heap + stack exceeds RAM limit */

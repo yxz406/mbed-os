@@ -37,9 +37,9 @@ extern "C" {
 #endif
 
 typedef struct {
-    PinName pin:8;
-    PinMode mode:6;
-    PinDirection dir:2;
+    PinName pin;
+    PinMode mode;
+    PinDirection dir;
 } gpio_t;
 
 #if DEVICE_ANALOGIN
@@ -59,6 +59,7 @@ struct dac_s {
 #if DEVICE_I2C
 struct i2c_s {
     I2C_TypeDef *i2c;
+    uint32_t location;
 #if DEVICE_I2C_ASYNCH
     uint32_t events;
     I2C_TransferSeq_TypeDef xfer;
@@ -84,9 +85,9 @@ struct pwmout_s {
 
 #if DEVICE_INTERRUPTIN
 struct gpio_irq_s {
-    PinName pin:8; // Pin number 4 least significant bits, port number 4 most significant bits
-    uint32_t risingEdge:1;
-    uint32_t fallingEdge:1;
+    PinName pin;
+    uint8_t risingEdge;
+    uint8_t fallingEdge;
 };
 #endif
 
@@ -116,7 +117,8 @@ struct serial_s {
 #if DEVICE_SPI
 struct spi_s {
     USART_TypeDef *spi;
-    int location;
+    uint32_t location;
+    uint32_t route;
     uint8_t bits;
     uint8_t master;
 #if DEVICE_SPI_ASYNCH
@@ -134,17 +136,40 @@ struct lp_timer_s {
 };
 #endif
 
-#if DEVICE_SLEEP
-#define NUM_SLEEP_MODES 5
-typedef enum {
-    EM0 = 0,
-    EM1 = 1,
-    EM2 = 2,
-    EM3 = 3,
-    EM4 = 4
-} sleepstate_enum;
+#if DEVICE_FLASH
+struct flash_s {
+    MSC_TypeDef *msc;
+};
 #endif
 
+#if DEVICE_TRNG
+struct trng_s {
+    TRNG_TypeDef *instance;
+};
+#endif
+
+#if DEVICE_CAN
+struct can_s {
+    CAN_TypeDef *instance;
+};
+#endif
+
+#if DEVICE_QSPI
+struct qspi_s {
+    QSPI_TypeDef *instance;
+    PinName io0;
+    PinName io1;
+    PinName io2;
+    PinName io3;
+    PinName sclk;
+    PinName ssel;
+};
+#endif
+
+#if DEVICE_CRC
+//GPCRC supports any 16-bit poly, but only the CCITT 32-bit poly
+#define HAL_CRC_IS_SUPPORTED(polynomial, width) ((width) == 16 || ((width) == 32 && (polynomial) == POLY_32BIT_ANSI))
+#endif
 
 #ifdef __cplusplus
 }

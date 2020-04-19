@@ -2,8 +2,6 @@
   ******************************************************************************
   * @file    stm32l1xx_hal_i2c.c
   * @author  MCD Application Team
-  * @version V1.2.0
-  * @date    01-July-2016
   * @brief   I2C HAL module driver.
   *          This file provides firmware functions to manage the following 
   *          functionalities of the Inter Integrated Circuit (I2C) peripheral:
@@ -211,7 +209,7 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT(c) 2016 STMicroelectronics</center></h2>
+  * <h2><center>&copy; COPYRIGHT(c) 2017 STMicroelectronics</center></h2>
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -257,12 +255,12 @@
 /** @defgroup I2C_Private_Define I2C Private Define
   * @{
   */
-#define I2C_TIMEOUT_FLAG          ((uint32_t)35U)         /*!< Timeout 35 ms             */
-#define I2C_TIMEOUT_ADDR_SLAVE    ((uint32_t)10000U)      /*!< Timeout 10 s              */
-#define I2C_TIMEOUT_BUSY_FLAG     ((uint32_t)25U)         /*!< Timeout 25 ms             */
-#define I2C_NO_OPTION_FRAME       ((uint32_t)0xFFFF0000U) /*!< XferOptions default value */
+#define I2C_TIMEOUT_FLAG          (35U)         /*!< Timeout 35 ms             */
+#define I2C_TIMEOUT_ADDR_SLAVE    (10000U)      /*!< Timeout 10 s              */
+#define I2C_TIMEOUT_BUSY_FLAG     (25U)         /*!< Timeout 25 ms             */
+#define I2C_NO_OPTION_FRAME       (0xFFFF0000U) /*!< XferOptions default value */
 
-#define I2C_MIN_PCLK_FREQ         ((uint32_t)2000000U)    /*!< 2 MHz                     */
+#define I2C_MIN_PCLK_FREQ         (2000000U)    /*!< 2 MHz                     */
 
 /* Private define for @ref PreviousState usage */
 #define I2C_STATE_MSK             ((uint32_t)((HAL_I2C_STATE_BUSY_TX | HAL_I2C_STATE_BUSY_RX) & (~(uint32_t)HAL_I2C_STATE_READY))) /*!< Mask State define, keep only RX and TX bits            */
@@ -1337,7 +1335,7 @@ HAL_StatusTypeDef HAL_I2C_Master_Receive_IT(I2C_HandleTypeDef *hi2c, uint16_t De
 
     /* Enable Acknowledge */
     SET_BIT(hi2c->Instance->CR1, I2C_CR1_ACK);
-    
+
     /* Generate Start */
     SET_BIT(hi2c->Instance->CR1, I2C_CR1_START);
 
@@ -1532,7 +1530,7 @@ HAL_StatusTypeDef HAL_I2C_Master_Sequential_Receive_IT(I2C_HandleTypeDef *hi2c, 
       {
         /* Enable Acknowledge */
         SET_BIT(hi2c->Instance->CR1, I2C_CR1_ACK);
-        
+
         /* Generate Start */
         SET_BIT(hi2c->Instance->CR1, I2C_CR1_START);
       }
@@ -1540,7 +1538,7 @@ HAL_StatusTypeDef HAL_I2C_Master_Sequential_Receive_IT(I2C_HandleTypeDef *hi2c, 
       {
         /* Enable Acknowledge */
         SET_BIT(hi2c->Instance->CR1, I2C_CR1_ACK);
-        
+
         /* Generate ReStart */
         SET_BIT(hi2c->Instance->CR1, I2C_CR1_START);
       }
@@ -3840,9 +3838,8 @@ static HAL_StatusTypeDef I2C_MasterReceive_RXNE(I2C_HandleTypeDef *hi2c)
       (*hi2c->pBuffPtr++) = hi2c->Instance->DR;
       hi2c->XferCount--;
 
-      tmp = (uint32_t)(hi2c->State) & I2C_STATE_MSK;
-      hi2c->PreviousState = tmp | (uint32_t)(hi2c->Mode);
       hi2c->State = HAL_I2C_STATE_READY;
+      hi2c->PreviousState = I2C_STATE_NONE;
 
       if(hi2c->Mode == HAL_I2C_MODE_MEM)
       {
@@ -3868,7 +3865,6 @@ static HAL_StatusTypeDef I2C_MasterReceive_RXNE(I2C_HandleTypeDef *hi2c)
 static HAL_StatusTypeDef I2C_MasterReceive_BTF(I2C_HandleTypeDef *hi2c)
 {
   /* Declaration of temporary variables to prevent undefined behavior of volatile usage */
-  uint32_t tmp;
   uint32_t CurrentXferOptions = hi2c->XferOptions;
 
   if(hi2c->XferCount == 3U)
@@ -3893,16 +3889,12 @@ static HAL_StatusTypeDef I2C_MasterReceive_BTF(I2C_HandleTypeDef *hi2c)
 
       if((CurrentXferOptions == I2C_NEXT_FRAME) || (CurrentXferOptions == I2C_FIRST_FRAME))
       {
-        /* Generate Start */
+        /* Generate ReStart */
         hi2c->Instance->CR1 |= I2C_CR1_START;
       }
-      tmp = (uint32_t)(hi2c->State) & I2C_STATE_MSK;
-      hi2c->PreviousState = tmp | (uint32_t)(hi2c->Mode);
     }
     else
     {
-      hi2c->PreviousState = I2C_STATE_MASTER_BUSY_RX;
-
       /* Generate Stop */
       hi2c->Instance->CR1 |= I2C_CR1_STOP;
     }

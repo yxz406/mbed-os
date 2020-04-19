@@ -19,6 +19,8 @@
 
 #include "ble/Gap.h"
 
+#if BLE_FEATURE_GATT_SERVER
+
 /**
 * @class LinkLossService
 * @brief This service defines behavior when a link is lost between two devices.
@@ -36,8 +38,10 @@ public:
     typedef void (* callback_t)(AlertLevel_t level);
 
     /**
-     * @param[ref] ble
+     * @param bleIn
      *               BLE object for the underlying controller.
+     * @param callbackIn Callback invoked upon disconnection.
+     * @param levelIn Alert level.
      */
     LinkLossService(BLE &bleIn, callback_t callbackIn, AlertLevel_t levelIn = NO_ALERT) :
         ble(bleIn),
@@ -78,7 +82,7 @@ protected:
      * This callback allows receiving updates to the AlertLevel characteristic.
      *
      * @param[in] params
-     *     Information about the characterisitc being updated.
+     *     Information about the characteristic being updated.
      */
     virtual void onDataWritten(const GattWriteCallbackParams *params) {
         if (params->handle == alertLevelChar.getValueHandle()) {
@@ -99,5 +103,7 @@ protected:
 
     ReadWriteGattCharacteristic<uint8_t> alertLevelChar;
 };
+
+#endif // BLE_FEATURE_GATT_SERVER
 
 #endif /* __BLE_LINK_LOSS_SERVICE_H__ */

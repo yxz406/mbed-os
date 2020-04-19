@@ -1,5 +1,9 @@
 /* Linker script to configure memory regions. */
 
+#if !defined(MBED_BOOT_STACK_SIZE)
+    #define MBED_BOOT_STACK_SIZE 0x800
+#endif
+
 MEMORY
 {
   FLASH (rx) : ORIGIN = 0x0001C000, LENGTH = 0x24000
@@ -86,13 +90,13 @@ SECTIONS
 		*(vtable)
 		*(.data*)
 
-		. = ALIGN(4);
+		. = ALIGN(8);
 		/* preinit data */
 		PROVIDE_HIDDEN (__preinit_array_start = .);
 		KEEP(*(.preinit_array))
 		PROVIDE_HIDDEN (__preinit_array_end = .);
 
-		. = ALIGN(4);
+		. = ALIGN(8);
 		/* init data */
 		PROVIDE_HIDDEN (__init_array_start = .);
 		KEEP(*(SORT(.init_array.*)))
@@ -100,7 +104,7 @@ SECTIONS
 		PROVIDE_HIDDEN (__init_array_end = .);
 
 
-		. = ALIGN(4);
+		. = ALIGN(8);
 		/* finit data */
 		PROVIDE_HIDDEN (__fini_array_start = .);
 		KEEP(*(SORT(.fini_array.*)))
@@ -108,7 +112,7 @@ SECTIONS
 		PROVIDE_HIDDEN (__fini_array_end = .);
 
 		*(.jcr)
-		. = ALIGN(4);
+		. = ALIGN(8);
 		/* All data end */
 		__data_end__ = .;
 
@@ -116,11 +120,11 @@ SECTIONS
 
 	.bss :
 	{
-		. = ALIGN(4);
+		. = ALIGN(8);
 		__bss_start__ = .;
 		*(.bss*)
 		*(COMMON)
-		. = ALIGN(4);
+		. = ALIGN(8);
 		__bss_end__ = .;
 	} > RAM
 
@@ -130,7 +134,7 @@ SECTIONS
 		end = __end__;
 		__HeapBase = .;
 		*(.heap*)
-		. = ORIGIN(RAM) + LENGTH(RAM) - Stack_Size;
+		. = ORIGIN(RAM) + LENGTH(RAM) - MBED_BOOT_STACK_SIZE;
 		__HeapLimit = .;
 	} > RAM
 
@@ -145,7 +149,7 @@ SECTIONS
 	/* Set stack top to end of RAM, and stack limit move down by
 	 * size of stack_dummy section */
 	__StackTop = ORIGIN(RAM) + LENGTH(RAM);
-	__StackLimit = __StackTop - SIZEOF(.stack_dummy);
+	__StackLimit = __StackTop - MBED_BOOT_STACK_SIZE;
 	PROVIDE(__stack = __StackTop);
 
 	/* Check if data + heap + stack exceeds RAM limit */

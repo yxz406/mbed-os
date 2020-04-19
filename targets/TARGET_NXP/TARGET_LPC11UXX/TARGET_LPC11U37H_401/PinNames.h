@@ -106,6 +106,9 @@ typedef enum {
     // BTN Names
     BTN1 = P0_16,
     BTN2 = P0_1,
+    // Standardized button names
+    BUTTON1 = BTN1,
+    BUTTON2 = BTN2,
     
     // UART
     UART_TX = P0_19,
@@ -144,9 +147,13 @@ typedef enum {
     SDMISO = P0_8,
     SDSCLK = P1_29,
     SDSSEL = P1_12,
-    
+
     // Not connected
     NC = (int)0xFFFFFFFF,
+
+    // Standard but not supported pins
+    USBTX = NC,
+    USBRX = NC,
 } PinName;
 
 typedef enum {

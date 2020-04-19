@@ -27,20 +27,21 @@
 #
 
 # Set the mbed TLS release to import (this can/should be edited before import)
-MBED_TLS_RELEASE ?= mbedtls-2.4.0
+MBED_TLS_RELEASE ?= mbedtls-2.20.0d1
+MBED_TLS_REPO_URL ?= git@github.com:ARMmbed/mbedtls.git
 
 # Translate between mbed TLS namespace and mbed namespace
 TARGET_PREFIX:=../
 TARGET_SRC:=$(TARGET_PREFIX)src
 TARGET_INC:=$(TARGET_PREFIX)inc
+TARGET_TESTS:=$(TARGET_PREFIX)TESTS
 
 # mbed TLS source directory - hidden from mbed via TARGET_IGNORE
-MBED_TLS_URL:=https://github.com/ARMmbed/mbedtls-restricted.git
 MBED_TLS_DIR:=TARGET_IGNORE/mbedtls
 MBED_TLS_API:=$(MBED_TLS_DIR)/include/mbedtls
 MBED_TLS_GIT_CFG=$(MBED_TLS_DIR)/.git/config
 
-.PHONY: all deploy rsync mbedtls clean update
+.PHONY: all deploy deploy-tests rsync mbedtls clean update
 
 all: mbedtls
 
@@ -59,7 +60,6 @@ rsync:
 	#
 	# Copying licenses
 	cp $(MBED_TLS_DIR)/LICENSE $(TARGET_PREFIX)
-	cp $(MBED_TLS_DIR)/apache-2.0.txt $(TARGET_PREFIX)
 	#
 
 deploy: rsync
@@ -67,33 +67,46 @@ deploy: rsync
 	# Adjusting the default mbed TLS config file to mbed purposes
 	./adjust-config.sh $(MBED_TLS_DIR)/scripts/config.pl $(TARGET_INC)/mbedtls/config.h
 	#
-	# Copy the trimmed config that does not require entropy source
+	# Adjusting the default mbed TLS check-config file to mbed purposes
+	./adjust-check-config.sh $(TARGET_INC)/mbedtls/check_config.h
+	#
+	# Copy and adjust the trimmed config that does not require entropy source
 	cp $(MBED_TLS_DIR)/configs/config-no-entropy.h $(TARGET_INC)/mbedtls/.
+	./adjust-no-entropy-config.sh $(MBED_TLS_DIR)/scripts/config.pl $(TARGET_INC)/mbedtls/config-no-entropy.h
+
+deploy-tests: deploy
+	#
+	# Copying mbed TLS tests...
+	rm -rf $(TARGET_TESTS)
+	mkdir -p $(TARGET_TESTS)
+	rsync -a --delete $(MBED_TLS_DIR)/tests/TESTS/ $(TARGET_TESTS)
+	mkdir -p $(TARGET_TESTS)/host_tests
+	cp $(MBED_TLS_DIR)/tests/scripts/mbedtls_test.py $(TARGET_TESTS)/host_tests/
 
 update: $(MBED_TLS_GIT_CFG)  $(MBED_TLS_HA_GIT_CFG)
 	#
 	# Updating to the specified mbed TLS library version
 	# (If it is not an initial checkout we will start with the repository
 	# being in a detached head state)
-	git -C $(MBED_TLS_DIR) checkout development
-	git -C $(MBED_TLS_DIR) pull --rebase origin development
+	git -C $(MBED_TLS_DIR) fetch
 	#
 	# Checking out the required release
 	git -C $(MBED_TLS_DIR) checkout $(MBED_TLS_RELEASE)
 	#
+	# Update and checkout git submodules
+	git -C $(MBED_TLS_DIR) submodule update --init --recursive
+	#
 	# Updating checked out version tag
-	echo $(MBED_TLS_RELEASE) > $(TARGET_PREFIX)VERSION.txt
+	git -C $(MBED_TLS_DIR) describe --tags --abbrev=12 --dirty --always > $(TARGET_PREFIX)VERSION.txt
 
 $(MBED_TLS_GIT_CFG):
 	rm -rf $(MBED_TLS_DIR)
-	git clone $(MBED_TLS_URL) $(MBED_TLS_DIR)
+	git clone $(MBED_TLS_REPO_URL) $(MBED_TLS_DIR)
 
 clean:
 	rm -f $(TARGET_PREFIX)LICENSE
-	rm -f $(TARGET_PREFIX)apache-2.0.txt
 	rm -f $(TARGET_PREFIX)VERSION.txt
 	rm -f $(TARGET_PREFIX)AUTHORS.txt
 	rm -rf $(TARGET_SRC)
 	rm -rf $(TARGET_INC)
 	rm -rf $(MBED_TLS_DIR)
-

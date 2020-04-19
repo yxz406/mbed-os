@@ -16,10 +16,25 @@
 #ifndef MBED_MBED_RTX_H
 #define MBED_MBED_RTX_H
 
-#if defined(TARGET_RZ_A1H) || defined(TARGET_VK_RZ_A1H)
-#ifndef OS_CLOCK
-#define OS_CLOCK         12000000
+#include <stdint.h>
+
+#if defined(TARGET_RENESAS)
+
+#if defined(__ARMCC_VERSION)
+    extern uint32_t Image$$ARM_LIB_STACK$$Base[];
+    extern uint32_t Image$$ARM_LIB_STACK$$ZI$$Limit[];
+    extern uint32_t Image$$ARM_LIB_HEAP$$Base[];
+    #define INITIAL_SP            Image$$ARM_LIB_STACK$$ZI$$Limit
+    #define HEAP_START            Image$$ARM_LIB_HEAP$$Base
+    #define HEAP_SIZE             (uint32_t)((uint32_t) Image$$ARM_LIB_STACK$$Base - (uint32_t) HEAP_START)
+#elif defined(__GNUC__)
+    #define INITIAL_SP            (&__StackTop)
+#elif defined(__ICCARM__)
+    /* No region declarations needed */
+#else
+    #error "no toolchain defined"
 #endif
+
 #endif
 
 #endif  // MBED_MBED_RTX_H

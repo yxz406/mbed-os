@@ -46,14 +46,11 @@ typedef enum {
 } DACName;
 
 typedef enum {
-    UART_1 = (int)USART1_BASE,  
+    UART_1 = (int)USART1_BASE,
     UART_2 = (int)USART2_BASE
 } UARTName;
 
-#define STDIO_UART_TX  PA_2
-#define STDIO_UART_RX  PA_3
-#define STDIO_UART     UART_2
-
+#define DEVICE_SPI_COUNT 2
 typedef enum {
     SPI_1 = (int)SPI1_BASE,
     SPI_2 = (int)SPI2_BASE
@@ -67,7 +64,7 @@ typedef enum {
 typedef enum {
     PWM_1  = (int)TIM1_BASE,
     PWM_2  = (int)TIM2_BASE,
-    PWM_3 =  (int)TIM3_BASE,
+    PWM_3  = (int)TIM3_BASE,
     PWM_14 = (int)TIM14_BASE,
     PWM_15 = (int)TIM15_BASE,
     PWM_16 = (int)TIM16_BASE,

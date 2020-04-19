@@ -34,6 +34,11 @@
 #include "PortNames.h"
 #include "PeripheralNames.h"
 #include "PinNames.h"
+#include "stm32f4xx_ll_usart.h"
+#include "stm32f4xx_ll_tim.h"
+#include "stm32f4xx_ll_pwr.h"
+#include "stm32f4xx_ll_adc.h"
+#include "stm32f4xx_ll_rtc.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -76,7 +81,7 @@ struct spi_s {
     PinName pin_mosi;
     PinName pin_sclk;
     PinName pin_ssel;
-#ifdef DEVICE_SPI_ASYNCH
+#if DEVICE_SPI_ASYNCH
     uint32_t event;
     uint8_t transfer_type;
 #endif
@@ -94,6 +99,8 @@ struct i2c_s {
     int hz;
     PinName sda;
     PinName scl;
+    int sda_func;
+    int scl_func;
     IRQn_Type event_i2cIRQ;
     IRQn_Type error_i2cIRQ;
     uint8_t XferOperation;
@@ -110,11 +117,56 @@ struct i2c_s {
 #endif
 };
 
+#if DEVICE_FLASH
+struct flash_s {
+    uint32_t dummy;
+};
+#endif
+
+struct analogin_s {
+    ADC_HandleTypeDef handle;
+    PinName pin;
+    uint8_t channel;
+};
+
+#define GPIO_IP_WITHOUT_BRR
 #include "gpio_object.h"
+
+#if DEVICE_ANALOGOUT
+struct dac_s {
+    DACName dac;
+    uint32_t channel;
+    DAC_HandleTypeDef handle;
+};
+#endif
+
+#if DEVICE_CAN
+struct can_s {
+    CAN_HandleTypeDef CanHandle;
+    int index;
+    int hz;
+};
+#endif
+
+#if DEVICE_QSPI
+struct qspi_s {
+#if defined(OCTOSPI1)
+    OSPI_HandleTypeDef handle;
+#else
+    QSPI_HandleTypeDef handle;
+#endif
+    QSPIName qspi;
+    PinName io0;
+    PinName io1;
+    PinName io2;
+    PinName io3;
+    PinName sclk;
+    PinName ssel;
+};
+#endif
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

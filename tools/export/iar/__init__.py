@@ -1,3 +1,6 @@
+from __future__ import print_function, absolute_import
+from builtins import str
+
 import os
 from os.path import sep, join, exists
 from collections import namedtuple
@@ -10,31 +13,36 @@ from tools.targets import TARGET_MAP
 from tools.export.exporters import Exporter, TargetNotSupportedException
 import json
 from tools.export.cmsis import DeviceCMSIS
+from tools.utils import NotSupportedException
 from multiprocessing import cpu_count
+
+
+def _supported(mcu, iar_targets):
+    if "IAR" not in mcu.supported_toolchains:
+        return False
+    if hasattr(mcu, 'device_name') and mcu.device_name in iar_targets:
+        return True
+    if mcu.name in iar_targets:
+        return True
+    return False
+
+
+_iar_defs = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'iar_definitions.json')
+
+with open(_iar_defs, 'r') as f:
+    _GUI_OPTIONS = json.load(f)
+
 
 class IAR(Exporter):
     NAME = 'iar'
     TOOLCHAIN = 'IAR'
 
-    #iar_definitions.json location
-    def_loc = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), '..', '..', '..',
-        'tools','export', 'iar', 'iar_definitions.json')
+    @classmethod
+    def is_target_supported(cls, target_name):
+        target = TARGET_MAP[target_name]
+        return _supported(target, list(_GUI_OPTIONS))
 
-    #create a dictionary of the definitions
-    with open(def_loc, 'r') as f:
-        IAR_DEFS = json.load(f)
-
-    #supported targets have a device name and corresponding definition in
-    #iar_definitions.json
-    TARGETS = [target for target, obj in TARGET_MAP.iteritems()
-               if hasattr(obj, 'device_name') and
-               obj.device_name in IAR_DEFS.keys() and "IAR" in obj.supported_toolchains]
-
-    SPECIAL_TEMPLATES = {
-        'rz_a1h'  : 'iar/iar_rz_a1h.ewp.tmpl',
-        'nucleo_f746zg' : 'iar/iar_nucleo_f746zg.ewp.tmpl'
-    }
 
     def iar_groups(self, grouped_src):
         """Return a namedtuple of group info
@@ -61,18 +69,30 @@ class IAR(Exporter):
 
     def iar_device(self):
         """Retrieve info from iar_definitions.json"""
-        device_name =  TARGET_MAP[self.target].device_name
-        device_info = self.IAR_DEFS[device_name]
+        tgt = TARGET_MAP[self.target]
+        device_name = (tgt.device_name if hasattr(tgt, "device_name") else
+                       tgt.name)
+        device_info = _GUI_OPTIONS[device_name]
         iar_defaults ={
             "OGChipSelectEditMenu": "",
             "CoreVariant": '',
             "GFPUCoreSlave": '',
             "GFPUCoreSlave2": 40,
-            "GBECoreSlave": 35
+            "GBECoreSlave": 35,
+            "GBECoreSlave2": '',
+            "FPU2": 0,
+            "NrRegs": 0,
+            "NEON": '',
+            "CExtraOptionsCheck": 0,
+            "CExtraOptions": "",
+            "CMSISDAPJtagSpeedList": 0,
+            "DSPExtension": 0,
+            "TrustZone": 0,
+            "IlinkOverrideProgramEntryLabel": 0,
+            "IlinkProgramEntryLabel": "__iar_program_start",
         }
-
         iar_defaults.update(device_info)
-        IARdevice = namedtuple('IARdevice', iar_defaults.keys())
+        IARdevice = namedtuple('IARdevice', list(iar_defaults))
         return IARdevice(**iar_defaults)
 
     def format_file(self, file):
@@ -86,30 +106,32 @@ class IAR(Exporter):
             grouped[group] = [self.format_file(src) for src in files]
         return grouped
 
-    def get_ewp_template(self):
-        return self.SPECIAL_TEMPLATES.get(self.target.lower(), 'iar/ewp.tmpl')
-
     def generate(self):
         """Generate the .eww, .ewd, and .ewp files"""
+        if not self.resources.linker_script:
+            raise NotSupportedException("No linker script found.")
         srcs = self.resources.headers + self.resources.s_sources + \
                self.resources.c_sources + self.resources.cpp_sources + \
-               self.resources.objects + self.resources.libraries
+               self.resources.objects + self.libraries
         flags = self.flags
-        flags['c_flags'] = list(set(flags['common_flags']
-                                    + flags['c_flags']
-                                    + flags['cxx_flags']))
-        if '--vla' in flags['c_flags']:
-            flags['c_flags'].remove('--vla')
-        if '--no_static_destruction' in flags['c_flags']:
-            flags['c_flags'].remove('--no_static_destruction')
-        #Optimizations
-        if '-Oh' in flags['c_flags']:
-            flags['c_flags'].remove('-Oh')
+        c_flags = list(set(flags['common_flags']
+                           + flags['c_flags']
+                           + flags['cxx_flags']))
+        # Flags set in template to be set by user in IDE
+        template = ["--vla", "--no_static_destruction"]
+        # Flag invalid if set in template
+        # Optimizations are also set in template
+        invalid_flag = lambda x: x in template or re.match("-O(\d|time|n|l|hz?)", x)
+        flags['c_flags'] = [flag for flag in c_flags if not invalid_flag(flag)]
 
         try:
             debugger = DeviceCMSIS(self.target).debug.replace('-','').upper()
         except TargetNotSupportedException:
             debugger = "CMSISDAP"
+
+        trustZoneMode = 0
+        if self.toolchain.target.core.endswith("-NS"):
+            trustZoneMode = 1
 
         ctx = {
             'name': self.project_name,
@@ -118,13 +140,25 @@ class IAR(Exporter):
             'include_paths': [self.format_file(src) for src in self.resources.inc_dirs],
             'device': self.iar_device(),
             'ewp': sep+self.project_name + ".ewp",
-            'debugger': debugger
+            'debugger': debugger,
+            'trustZoneMode': trustZoneMode,
         }
         ctx.update(flags)
 
-        self.gen_file('iar/eww.tmpl', ctx, self.project_name+".eww")
+        self.gen_file('iar/eww.tmpl', ctx, self.project_name + ".eww")
         self.gen_file('iar/ewd.tmpl', ctx, self.project_name + ".ewd")
-        self.gen_file(self.get_ewp_template(), ctx, self.project_name + ".ewp")
+        self.gen_file('iar/ewp.tmpl', ctx, self.project_name + ".ewp")
+
+    @staticmethod
+    def clean(project_name):
+        os.remove(project_name + ".ewp")
+        os.remove(project_name + ".ewd")
+        os.remove(project_name + ".eww")
+        # legacy output file location
+        if exists('.build'):
+            shutil.rmtree('.build')
+        if exists('BUILD'):
+            shutil.rmtree('BUILD')
 
     @staticmethod
     def build(project_name, log_name="build_log.txt", cleanup=True):
@@ -158,7 +192,7 @@ class IAR(Exporter):
         else:
             out_string += "FAILURE"
 
-        print out_string
+        print(out_string)
 
         if log_name:
             # Write the output to the log file
@@ -167,14 +201,7 @@ class IAR(Exporter):
 
         # Cleanup the exported and built files
         if cleanup:
-            os.remove(project_name + ".ewp")
-            os.remove(project_name + ".ewd")
-            os.remove(project_name + ".eww")
-            # legacy output file location
-            if exists('.build'):
-                shutil.rmtree('.build')
-            if exists('BUILD'):
-                shutil.rmtree('BUILD')
+            IAR.clean(project_name)
 
         if ret_code !=0:
             # Seems like something went wrong.

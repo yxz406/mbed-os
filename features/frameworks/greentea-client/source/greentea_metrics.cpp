@@ -15,67 +15,102 @@
  * limitations under the License.
  */
 
-#include "mbed.h"
-#include "rtos.h"
-#include "mbed_stats.h"
-#include "cmsis_os.h"
 #include "greentea-client/test_env.h"
 #include "greentea-client/greentea_metrics.h"
-#include "SingletonPtr.h"
-#include "CircularBuffer.h"
+#include "platform/mbed_stats.h"
+#include <stdint.h>
+
+#if defined(MBED_STACK_STATS_ENABLED) && MBED_STACK_STATS_ENABLED && defined(MBED_CONF_RTOS_PRESENT)
+
+#include "rtos/Mutex.h"
+#include "rtos/Thread.h"
+#include "rtos/Kernel.h"
+#include "mbed_stats.h"
+#include "cmsis_os2.h"
+#include "platform/SingletonPtr.h"
+#include "platform/CircularBuffer.h"
+using namespace mbed;
+using namespace rtos;
 
 #define THREAD_BUF_COUNT    16
 
 typedef struct {
     uint32_t entry;
-    uint32_t arg;
     uint32_t stack_size;
     uint32_t max_stack;
+    const char *stack_name;
 } thread_info_t;
 
 // Mutex to protect "buf"
 static SingletonPtr<Mutex> mutex;
-#if defined(MBED_STACK_STATS_ENABLED) && MBED_STACK_STATS_ENABLED
 static char buf[128];
 static SingletonPtr<CircularBuffer<thread_info_t, THREAD_BUF_COUNT> > queue;
 #endif
 
+#if defined(MBED_CPU_STATS_ENABLED)
+static void send_CPU_info(void);
+#endif
+
+#if defined(MBED_HEAP_STATS_ENABLED ) && MBED_HEAP_STATS_ENABLED
 static void send_heap_info(void);
-#if defined(MBED_STACK_STATS_ENABLED) && MBED_STACK_STATS_ENABLED
+#endif
+#if defined(MBED_STACK_STATS_ENABLED) && MBED_STACK_STATS_ENABLED && defined(MBED_CONF_RTOS_PRESENT)
 static void send_stack_info(void);
-static void on_thread_terminate(osThreadId id);
-static void enqeue_thread_info(osThreadId id);
+static void on_thread_terminate(osThreadId_t id);
+static void enqeue_thread_info(osThreadId_t id);
 static void deque_and_print_thread_info(void);
 
 // sprintf uses a lot of stack so use these instead
+static uint32_t print_str(char *buf, const char *value);
 static uint32_t print_hex(char *buf, uint32_t value);
 static uint32_t print_dec(char *buf, uint32_t value);
 #endif
 
 void greentea_metrics_setup()
 {
-#if defined(MBED_STACK_STATS_ENABLED) && MBED_STACK_STATS_ENABLED
-    Thread::attach_terminate_hook(on_thread_terminate);
+#if defined(MBED_STACK_STATS_ENABLED) && MBED_STACK_STATS_ENABLED && defined(MBED_CONF_RTOS_PRESENT)
+    Kernel::attach_thread_terminate_hook(on_thread_terminate);
 #endif
 }
 
 void greentea_metrics_report()
 {
+#if defined(MBED_HEAP_STATS_ENABLED ) && MBED_HEAP_STATS_ENABLED
     send_heap_info();
-#if defined(MBED_STACK_STATS_ENABLED) && MBED_STACK_STATS_ENABLED
+#endif
+#if defined(MBED_STACK_STATS_ENABLED) && MBED_STACK_STATS_ENABLED && defined(MBED_CONF_RTOS_PRESENT)
     send_stack_info();
-    Thread::attach_terminate_hook(NULL);
+    Kernel::attach_thread_terminate_hook(NULL);
+#endif
+#if defined(MBED_CPU_STATS_ENABLED)
+    send_CPU_info();
 #endif
 }
 
+#if defined(MBED_CPU_STATS_ENABLED)
+static void send_CPU_info()
+{
+    mbed_stats_cpu_t stats;
+    mbed_stats_cpu_get(&stats);
+
+    greentea_send_kv("__cpu_info        up time", stats.uptime);
+    greentea_send_kv("__cpu_info     sleep time", stats.sleep_time);
+    greentea_send_kv("__cpu_info deepsleep time", stats.deep_sleep_time);
+    greentea_send_kv("__cpu_info  %  sleep/deep", (stats.sleep_time * 100) / stats.uptime, (stats.deep_sleep_time * 100) / stats.uptime);
+}
+#endif
+
+#if defined(MBED_HEAP_STATS_ENABLED ) && MBED_HEAP_STATS_ENABLED
 static void send_heap_info()
 {
     mbed_stats_heap_t heap_stats;
     mbed_stats_heap_get(&heap_stats);
     greentea_send_kv("max_heap_usage",heap_stats.max_size);
+    greentea_send_kv("reserved_heap",heap_stats.reserved_size);
 }
+#endif
 
-#if defined(MBED_STACK_STATS_ENABLED) && MBED_STACK_STATS_ENABLED
+#if defined(MBED_STACK_STATS_ENABLED) && MBED_STACK_STATS_ENABLED && defined(MBED_CONF_RTOS_PRESENT)
 MBED_UNUSED static void send_stack_info()
 {
     mutex->lock();
@@ -86,22 +121,26 @@ MBED_UNUSED static void send_stack_info()
     }
 
     // Print info for all other threads
-    osThreadEnumId enum_id = _osThreadsEnumStart();
-    while (true) {
-        osThreadId thread_id = _osThreadEnumNext(enum_id);
-        if (NULL == thread_id) {
-            // End of enumeration
-            break;
-        }
-        enqeue_thread_info(thread_id);
+    uint32_t thread_n = osThreadGetCount();
+    osThreadId_t *threads = new (std::nothrow) osThreadId_t[thread_n];
+    // Don't fail on lack of memory
+    if (!threads) {
+        goto end;
+    }
+    thread_n = osThreadEnumerate(threads, thread_n);
+
+    for(size_t i = 0; i < thread_n; i++) {
+        enqeue_thread_info(threads[i]);
         deque_and_print_thread_info();
     }
-    _osThreadEnumFree(enum_id);
 
+    delete[] threads;
+
+end:
     mutex->unlock();
 }
 
-MBED_UNUSED static void on_thread_terminate(osThreadId id)
+MBED_UNUSED static void on_thread_terminate(osThreadId_t id)
 {
     mutex->lock();
 
@@ -116,30 +155,14 @@ MBED_UNUSED static void on_thread_terminate(osThreadId id)
     mutex->unlock();
 }
 
-static void enqeue_thread_info(osThreadId id)
+static void enqeue_thread_info(osThreadId_t id)
 {
-    osEvent info;
     thread_info_t thread_info = {};
-    info = _osThreadGetInfo(id, osThreadInfoEntry);
-    if (info.status != osOK) {
-        return;
-    }
-    thread_info.entry = (uint32_t)info.value.p;
-    info = _osThreadGetInfo(id, osThreadInfoArg);
-    if (info.status != osOK) {
-        return;
-    }
-    thread_info.arg = (uint32_t)info.value.p;
-    info = _osThreadGetInfo(id, osThreadInfoStackSize);
-    if (info.status != osOK) {
-        return;
-    }
-    thread_info.stack_size = (uint32_t)info.value.v;
-    info = _osThreadGetInfo(id, osThreadInfoStackMax);
-    if (info.status != osOK) {
-        return;
-    }
-    thread_info.max_stack = (uint32_t)info.value.v;
+
+    thread_info.entry = (uint32_t)id;
+    thread_info.stack_size = osThreadGetStackSize(id);
+    thread_info.max_stack = thread_info.stack_size - osThreadGetStackSpace(id);
+    thread_info.stack_name = osThreadGetName(id);
     queue->push(thread_info);
 }
 
@@ -150,9 +173,11 @@ static void deque_and_print_thread_info()
     MBED_ASSERT(ret);
     uint32_t pos = 0;
     buf[pos++] = '\"';
+    pos += print_str(buf + pos, thread_info.stack_name);
+    buf[pos++] = '\"';
+    buf[pos++] = ',';
+    buf[pos++] = '\"';
     pos += print_hex(buf + pos, thread_info.entry);
-    buf[pos++] = '-';
-    pos += print_hex(buf + pos, thread_info.arg);
     buf[pos++] = '\"';
     buf[pos++] = ',';
     pos += print_dec(buf + pos, thread_info.max_stack);
@@ -161,6 +186,16 @@ static void deque_and_print_thread_info()
     buf[pos++] = 0;
     greentea_send_kv("__thread_info", buf);
 }
+
+static uint32_t print_str(char *buf, const char *value)
+{
+    uint32_t pos = 0;
+    for (pos = 0; pos < strlen(value); pos++) {
+        buf[pos] = value[pos];
+    }
+    return pos;
+}
+
 
 static uint32_t print_hex(char *buf, uint32_t value)
 {

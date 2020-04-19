@@ -19,8 +19,6 @@
 ; *
 ; *****************************************************************************/
 
-__initial_sp        EQU     0x10008000  ; Top of RAM from LPC1768
-
                 PRESERVE8
                 THUMB
 
@@ -28,8 +26,9 @@ __initial_sp        EQU     0x10008000  ; Top of RAM from LPC1768
 
                 AREA    RESET, DATA, READONLY
                 EXPORT  __Vectors
+                IMPORT  |Image$$ARM_LIB_STACK$$ZI$$Limit|
 
-__Vectors       DCD     __initial_sp              ; Top of Stack
+__Vectors       DCD     |Image$$ARM_LIB_STACK$$ZI$$Limit| ; Top of Stack
                 DCD     Reset_Handler             ; Reset Handler
                 DCD     NMI_Handler               ; NMI Handler
                 DCD     HardFault_Handler         ; Hard Fault Handler
@@ -80,12 +79,6 @@ __Vectors       DCD     __initial_sp              ; Top of Stack
                 DCD     MCPWM_IRQHandler          ; 46: Motor Control PWM
                 DCD     QEI_IRQHandler            ; 47: Quadrature Encoder Interface
                 DCD     PLL1_IRQHandler           ; 48: PLL1 Lock (USB PLL)
-
-
-                IF      :LNOT::DEF:NO_CRP
-                AREA    |.ARM.__at_0x02FC|, CODE, READONLY
-CRP_Key         DCD     0xFFFFFFFF
-                ENDIF
 
 
                 AREA    |.text|, CODE, READONLY

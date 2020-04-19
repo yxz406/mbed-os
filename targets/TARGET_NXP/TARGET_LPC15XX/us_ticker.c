@@ -16,7 +16,7 @@
 #include <stddef.h>
 #include "us_ticker_api.h"
 #include "PeripheralNames.h"
-#include "critical.h"
+#include "mbed_critical.h"
 
 #define US_TICKER_TIMER_IRQn     SCT3_IRQn
 
@@ -72,6 +72,11 @@ void us_ticker_set_interrupt(timestamp_t timestamp) {
     LPC_SCT3->EVEN = (1 << 0);
 }
 
+void us_ticker_fire_interrupt(void)
+{
+    NVIC_SetPendingIRQ(US_TICKER_TIMER_IRQn);
+}
+
 void us_ticker_disable_interrupt(void) {
     // Disable interrupt on SCT3 event 0
     LPC_SCT3->EVEN = 0;
@@ -80,4 +85,9 @@ void us_ticker_disable_interrupt(void) {
 void us_ticker_clear_interrupt(void) {
     // Clear SCT3 event 0 interrupt flag
     LPC_SCT3->EVFLAG = (1 << 0);
+}
+
+void us_ticker_free(void)
+{
+
 }

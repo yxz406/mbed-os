@@ -1,6 +1,7 @@
 """
 mbed SDK
 Copyright (c) 2011-2013 ARM Limited
+SPDX-License-Identifier: Apache-2.0
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,9 +15,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+from __future__ import print_function
 
 from shutil import copy
-from host_test_plugins import HostTestPluginBase
+from .host_test_plugins import HostTestPluginBase
 from time import sleep
 
 
@@ -32,7 +34,7 @@ class HostTestPluginCopyMethod_Mbed(HostTestPluginBase):
             destination_disk += '/'
         try:
             copy(image_path, destination_disk)
-        except Exception, e:
+        except Exception as e:
             self.print_plugin_error("shutil.copy('%s', '%s')"% (image_path, destination_disk))
             self.print_plugin_error("Error: %s"% str(e))
             result = False

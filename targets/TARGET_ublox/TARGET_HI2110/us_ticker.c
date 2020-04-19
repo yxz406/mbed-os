@@ -25,7 +25,7 @@
  */
 
 #include "us_ticker_api.h"
-#include "critical.h"
+#include "mbed_critical.h"
 
 /* ----------------------------------------------------------------
  * MACROS
@@ -226,6 +226,12 @@ void us_ticker_set_interrupt(timestamp_t timestamp)
     core_util_critical_section_exit();
 }
 
+void us_ticker_fire_interrupt(void)
+{
+    g_user_interrupt = true;
+    NVIC_SetPendingIRQ(Timer_IRQn);
+}
+
 void us_ticker_disable_interrupt(void)
 {
     /* Can't actually disable the interrupt here
@@ -244,4 +250,9 @@ void us_ticker_clear_interrupt(void)
     g_user_interrupt = false;
     g_timer_extra_loops_required = 0;
     g_us_overflow_increment = 0;
+}
+
+void us_ticker_free(void)
+{
+
 }

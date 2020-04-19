@@ -41,6 +41,30 @@ static const SWM_Map SWM_SPI_MISO[] = {
     {5, 16},
 };
 
+// Pinmap used for testing only
+static const PinMap PinMap_SPI_testing[] = {
+    {P0_0,  0, 0},
+    {P0_1,  0, 0},
+    {P0_2,  0, 0},
+    {P0_3,  0, 0},
+    {P0_4,  0, 0},
+    {P0_5,  0, 0},
+    {P0_6,  0, 0},
+    {P0_7,  0, 0},
+    {P0_8,  0, 0},
+    {P0_9,  0, 0},
+    {P0_10, 0, 0},
+    {P0_11, 0, 0},
+    {P0_12, 0, 0},
+    {P0_13, 0, 0},
+    {P0_14, 0, 0},
+    {P0_15, 0, 0},
+    {P0_16, 0, 0},
+    {P0_17, 0, 0},
+
+    {NC, NC, 0}
+};
+
 // bit flags for used SPIs
 static unsigned char spi_used = 0;
 static int get_available_spi(void) {
@@ -178,6 +202,21 @@ int spi_master_write(spi_t *obj, int value) {
     return ssp_read(obj);
 }
 
+int spi_master_block_write(spi_t *obj, const char *tx_buffer, int tx_length,
+                           char *rx_buffer, int rx_length, char write_fill) {
+    int total = (tx_length > rx_length) ? tx_length : rx_length;
+
+    for (int i = 0; i < total; i++) {
+        char out = (i < tx_length) ? tx_buffer[i] : write_fill;
+        char in = spi_master_write(obj, out);
+        if (i < rx_length) {
+            rx_buffer[i] = in;
+        }
+    }
+
+    return total;
+}
+
 int spi_slave_receive(spi_t *obj) {
     return (ssp_readable(obj) && !ssp_busy(obj)) ? (1) : (0);
 }
@@ -193,4 +232,44 @@ void spi_slave_write(spi_t *obj, int value) {
 
 int spi_busy(spi_t *obj) {
     return ssp_busy(obj);
+}
+
+const PinMap *spi_master_mosi_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_master_miso_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_master_clk_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_master_cs_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_slave_mosi_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_slave_miso_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_slave_clk_pinmap()
+{
+    return PinMap_SPI_testing;
+}
+
+const PinMap *spi_slave_cs_pinmap()
+{
+    return PinMap_SPI_testing;
 }

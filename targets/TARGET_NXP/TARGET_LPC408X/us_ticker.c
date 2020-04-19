@@ -55,10 +55,20 @@ void us_ticker_set_interrupt(timestamp_t timestamp) {
     US_TICKER_TIMER->MCR |= 1;
 }
 
+void us_ticker_fire_interrupt(void)
+{
+    NVIC_SetPendingIRQ(US_TICKER_TIMER_IRQn);
+}
+
 void us_ticker_disable_interrupt(void) {
     US_TICKER_TIMER->MCR &= ~1;
 }
 
 void us_ticker_clear_interrupt(void) {
     US_TICKER_TIMER->IR = 1;
+}
+
+void us_ticker_free(void)
+{
+
 }

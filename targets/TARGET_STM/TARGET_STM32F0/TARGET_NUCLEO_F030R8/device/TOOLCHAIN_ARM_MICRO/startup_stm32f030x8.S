@@ -27,35 +27,6 @@
 ; OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Amount of memory (in bytes) allocated for Stack
-; Tailor this value to your application needs
-; <h> Stack Configuration
-;   <o> Stack Size (in Bytes) <0x0-0xFFFFFFFF:8>
-; </h>
-
-Stack_Size      EQU     0x00000400
-
-                AREA    STACK, NOINIT, READWRITE, ALIGN=3
-                EXPORT  __initial_sp
-                
-Stack_Mem       SPACE   Stack_Size
-__initial_sp    EQU     0x20002000 ; Top of RAM (8 KB for STM32F030R8)
-
-
-; <h> Heap Configuration
-;   <o>  Heap Size (in Bytes) <0x0-0xFFFFFFFF:8>
-; </h>
-
-Heap_Size       EQU     0x00000400
-
-                AREA    HEAP, NOINIT, READWRITE, ALIGN=3
-                EXPORT  __heap_base
-                EXPORT  __heap_limit
-                
-__heap_base
-Heap_Mem        SPACE   Heap_Size
-__heap_limit    EQU (__initial_sp - Stack_Size)
-
                 PRESERVE8
                 THUMB
 
@@ -65,8 +36,9 @@ __heap_limit    EQU (__initial_sp - Stack_Size)
                 EXPORT  __Vectors
                 EXPORT  __Vectors_End
                 EXPORT  __Vectors_Size
+                IMPORT  |Image$$ARM_LIB_STACK$$ZI$$Limit|
 
-__Vectors       DCD     __initial_sp                   ; Top of Stack
+__Vectors       DCD     |Image$$ARM_LIB_STACK$$ZI$$Limit| ; Top of Stack
                 DCD     Reset_Handler                  ; Reset Handler
                 DCD     NMI_Handler                    ; NMI Handler
                 DCD     HardFault_Handler              ; Hard Fault Handler
@@ -101,7 +73,7 @@ __Vectors       DCD     __initial_sp                   ; Top of Stack
                 DCD     TIM1_CC_IRQHandler             ; TIM1 Capture Compare
                 DCD     0                              ; Reserved
                 DCD     TIM3_IRQHandler                ; TIM3
-                DCD     0                              ; Reserved
+                DCD     TIM6_IRQHandler                ; TIM6
                 DCD     0                              ; Reserved
                 DCD     TIM14_IRQHandler               ; TIM14
                 DCD     TIM15_IRQHandler               ; TIM15
@@ -120,7 +92,7 @@ __Vectors_Size  EQU  __Vectors_End - __Vectors
 
                 AREA    |.text|, CODE, READONLY
 
-; Reset handler
+; Reset handler routine
 Reset_Handler    PROC
                  EXPORT  Reset_Handler                 [WEAK]
         IMPORT  __main
@@ -171,6 +143,7 @@ Default_Handler PROC
                 EXPORT  TIM1_BRK_UP_TRG_COM_IRQHandler [WEAK]
                 EXPORT  TIM1_CC_IRQHandler             [WEAK]
                 EXPORT  TIM3_IRQHandler                [WEAK]
+                EXPORT  TIM6_IRQHandler                [WEAK]
                 EXPORT  TIM14_IRQHandler               [WEAK]
                 EXPORT  TIM15_IRQHandler               [WEAK]
                 EXPORT  TIM16_IRQHandler               [WEAK]
@@ -197,6 +170,7 @@ ADC1_IRQHandler
 TIM1_BRK_UP_TRG_COM_IRQHandler
 TIM1_CC_IRQHandler
 TIM3_IRQHandler
+TIM6_IRQHandler
 TIM14_IRQHandler
 TIM15_IRQHandler
 TIM16_IRQHandler

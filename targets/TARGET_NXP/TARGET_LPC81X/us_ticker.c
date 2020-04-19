@@ -110,6 +110,11 @@ void us_ticker_set_interrupt(timestamp_t timestamp) {
     LPC_MRT->CTRL1 |= 1;
 }
 
+void us_ticker_fire_interrupt(void)
+{
+    NVIC_SetPendingIRQ(US_TICKER_TIMER_IRQn);
+}
+
 //Disable Timestamped interrupts triggered by TIMER1
 void us_ticker_disable_interrupt() {
     //Timer1 for Timestamped interrupts (31 bits downcounter @ SystemCoreClock)    
@@ -130,4 +135,9 @@ void us_ticker_clear_interrupt() {
         // the multiplication/division corrects that back to us counts.
         ticker_expired_count_us += ticker_fullcount_us;
     }
+}
+
+void us_ticker_free(void)
+{
+
 }

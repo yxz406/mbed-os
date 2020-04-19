@@ -1,6 +1,7 @@
 """
 mbed SDK
 Copyright (c) 2011-2013 ARM Limited
+SPDX-License-Identifier: Apache-2.0
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,15 +15,29 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+from __future__ import print_function, division, absolute_import
+
 from json import load
 from os.path import join, dirname
 from os import listdir
-from argparse import ArgumentParser
-from tools.toolchains import TOOLCHAINS
-from tools.targets import TARGET_NAMES
-from tools.utils import argparse_force_uppercase_type, \
-    argparse_lowercase_hyphen_type, argparse_many, \
-    argparse_filestring_type, args_error, argparse_profile_filestring_type
+from argparse import ArgumentParser, ArgumentTypeError
+
+from .toolchains import TOOLCHAINS, EXTRA_TOOLCHAIN_NAMES
+from .targets import TARGET_NAMES, Target, update_target_data
+from .utils import (argparse_force_uppercase_type, argparse_deprecate,
+                    argparse_lowercase_hyphen_type, argparse_many,
+                    argparse_filestring_type, args_error,
+                    argparse_profile_filestring_type)
+
+FLAGS_DEPRECATION_MESSAGE = "Please use the --profile argument instead.\n"\
+                            "Documentation may be found in "\
+                            "docs/Toolchain_Profiles.md"
+
+def get_toolchain_list():
+    toolchainlist = list(TOOLCHAINS)
+    toolchainlist.extend(EXTRA_TOOLCHAIN_NAMES)
+    toolchainlist.sort()
+    return toolchainlist
 
 def get_default_options_parser(add_clean=True, add_options=True,
                                add_app_config=False):
@@ -36,16 +51,19 @@ def get_default_options_parser(add_clean=True, add_options=True,
 
     targetnames = TARGET_NAMES
     targetnames.sort()
-    toolchainlist = list(TOOLCHAINS)
-    toolchainlist.sort()
+    toolchainlist = get_toolchain_list()
 
     parser.add_argument("-m", "--mcu",
                         help=("build for the given MCU (%s)" %
                               ', '.join(targetnames)),
-                        metavar="MCU",
-                        type=argparse_many(
-                            argparse_force_uppercase_type(
-                                targetnames, "MCU")))
+                        metavar="MCU")
+
+    parser.add_argument("--custom-targets",
+                        help="Specify directory containing custom_targets.json",
+                        type=argparse_filestring_type,
+                        dest="custom_targets_directory",
+                        action="append",
+                        default=None)
 
     parser.add_argument("-t", "--tool",
                         help=("build using the given TOOLCHAIN (%s)" %
@@ -59,14 +77,17 @@ def get_default_options_parser(add_clean=True, add_options=True,
                         help="print Warnings, and Errors in color",
                         action="store_true", default=False)
 
-    parser.add_argument("--cflags", default=[], action="append",
-                        help="Extra flags to provide to the C compiler")
+    parser.add_argument("--cflags",
+                        type=argparse_deprecate(FLAGS_DEPRECATION_MESSAGE),
+                        help="Deprecated. " + FLAGS_DEPRECATION_MESSAGE)
 
-    parser.add_argument("--asmflags", default=[], action="append",
-                        help="Extra flags to provide to the assembler")
+    parser.add_argument("--asmflags",
+                        type=argparse_deprecate(FLAGS_DEPRECATION_MESSAGE),
+                        help="Deprecated. " + FLAGS_DEPRECATION_MESSAGE)
 
-    parser.add_argument("--ldflags", default=[], action="append",
-                        help="Extra flags to provide to the linker")
+    parser.add_argument("--ldflags",
+                        type=argparse_deprecate(FLAGS_DEPRECATION_MESSAGE),
+                        help="Deprecated. " + FLAGS_DEPRECATION_MESSAGE)
 
     if add_clean:
         parser.add_argument("-c", "--clean", action="store_true", default=False,
@@ -92,7 +113,7 @@ def list_profiles():
     """
     return [fn.replace(".json", "") for fn in listdir(join(dirname(__file__), "profiles")) if fn.endswith(".json")]
 
-def extract_profile(parser, options, toolchain):
+def extract_profile(parser, options, toolchain, fallback="develop"):
     """Extract a Toolchain profile from parsed options
 
     Positional arguments:
@@ -100,16 +121,34 @@ def extract_profile(parser, options, toolchain):
     options - The parsed command line arguments
     toolchain - the toolchain that the profile should be extracted for
     """
-    profile = {'c': [], 'cxx': [], 'ld': [], 'common': [], 'asm': []}
+    profiles = []
     filenames = options.profile or [join(dirname(__file__), "profiles",
-                                         "default.json")]
+                                         fallback + ".json")]
     for filename in filenames:
         contents = load(open(filename))
-        try:
-            for key in profile.iterkeys():
-                profile[key] += contents[toolchain][key]
-        except KeyError:
+        if toolchain not in contents:
             args_error(parser, ("argument --profile: toolchain {} is not"
                                 " supported by profile {}").format(toolchain,
                                                                    filename))
-    return profile
+        profiles.append(contents)
+
+    return profiles
+
+def extract_mcus(parser, options):
+    try:
+        if options.custom_targets_directory:
+            for custom_targets_directory in options.custom_targets_directory:
+                Target.add_extra_targets(custom_targets_directory)
+            update_target_data()
+        elif options.source_dir:
+            for source_dir in options.source_dir:
+                Target.add_extra_targets(source_dir)
+            update_target_data()
+    except KeyError:
+        pass
+    targetnames = TARGET_NAMES
+    targetnames.sort()
+    try:
+        return argparse_many(argparse_force_uppercase_type(targetnames, "MCU"))(options.mcu)
+    except ArgumentTypeError as exc:
+        args_error(parser, "argument -m/--mcu: {}".format(str(exc)))

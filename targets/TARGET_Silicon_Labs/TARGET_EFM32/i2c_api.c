@@ -31,7 +31,6 @@
 #include "i2c_api.h"
 #include "PeripheralPins.h"
 #include "pinmap_function.h"
-#include "sleepmodes.h"
 
 #include "em_i2c.h"
 #include "em_cmu.h"
@@ -64,6 +63,11 @@ static uint8_t i2c_get_index(i2c_t *obj)
             index = 1;
             break;
 #endif
+#ifdef I2C2
+        case I2C_2:
+            index = 2;
+            break;
+#endif
         default:
             printf("I2C module not available.. Out of bound access.");
             break;
@@ -85,6 +89,11 @@ static CMU_Clock_TypeDef i2c_get_clock(i2c_t *obj)
             clock = cmuClock_I2C1;
             break;
 #endif
+#ifdef I2C2
+        case I2C_2:
+            clock = cmuClock_I2C2;
+            break;
+#endif
         default:
             printf("I2C module not available.. Out of bound access. (clock)");
             clock = cmuClock_HFPER;
@@ -99,33 +108,36 @@ void i2c_init(i2c_t *obj, PinName sda, PinName scl)
     I2CName i2c_sda = (I2CName) pinmap_peripheral(sda, PinMap_I2C_SDA);
     I2CName i2c_scl = (I2CName) pinmap_peripheral(scl, PinMap_I2C_SCL);
     obj->i2c.i2c = (I2C_TypeDef*) pinmap_merge(i2c_sda, i2c_scl);
-    MBED_ASSERT(((int) obj->i2c.i2c) != NC);
-    
+    MBED_ASSERT(((unsigned int) obj->i2c.i2c) != NC);
+
     /* You need both SDA and SCL for I2C, so configuring one of them to NC is illegal */
-    MBED_ASSERT((uint32_t)sda != (uint32_t)NC);
-    MBED_ASSERT((uint32_t)scl != (uint32_t)NC);
+    MBED_ASSERT((unsigned int)sda != NC);
+    MBED_ASSERT((unsigned int)scl != NC);
 
     /* Enable clock for the peripheral */
     CMU_ClockEnable(i2c_get_clock(obj), true);
 
     /* Initializing the I2C */
     /* Using default settings */
+    i2c_reset(obj);
     I2C_Init_TypeDef i2cInit = I2C_INIT_DEFAULT;
     I2C_Init(obj->i2c.i2c, &i2cInit);
 
     /* Enable pins at correct location */
 #ifdef I2C_ROUTE_SDAPEN
     /* Find common location in pinmap */
-    int loc_sda = pin_location(sda, PinMap_I2C_SDA);
-    int loc_scl = pin_location(scl, PinMap_I2C_SCL);
-    int loc = pinmap_merge(loc_sda, loc_scl);
+    unsigned int loc_sda = pin_location(sda, PinMap_I2C_SDA);
+    unsigned int loc_scl = pin_location(scl, PinMap_I2C_SCL);
+    unsigned int loc = pinmap_merge(loc_sda, loc_scl);
     MBED_ASSERT(loc != NC);
     /* Set location */
+    obj->i2c.location = I2C_ROUTE_SDAPEN | I2C_ROUTE_SCLPEN | (loc << _I2C_ROUTE_LOCATION_SHIFT);
     obj->i2c.i2c->ROUTE = I2C_ROUTE_SDAPEN | I2C_ROUTE_SCLPEN | (loc << _I2C_ROUTE_LOCATION_SHIFT);
 #else
     obj->i2c.i2c->ROUTEPEN  = I2C_ROUTEPEN_SDAPEN | I2C_ROUTEPEN_SCLPEN;
-    obj->i2c.i2c->ROUTELOC0 = (pin_location(sda, PinMap_I2C_SDA) << _I2C_ROUTELOC0_SDALOC_SHIFT) |
-                              (pin_location(scl, PinMap_I2C_SCL) << _I2C_ROUTELOC0_SCLLOC_SHIFT);
+    obj->i2c.location = (pin_location(sda, PinMap_I2C_SDA) << _I2C_ROUTELOC0_SDALOC_SHIFT) |
+                        (pin_location(scl, PinMap_I2C_SCL) << _I2C_ROUTELOC0_SCLLOC_SHIFT);
+    obj->i2c.i2c->ROUTELOC0 = obj->i2c.location;
 #endif
 
     /* Set up the pins for I2C use */
@@ -174,6 +186,11 @@ void i2c_enable_interrupt(i2c_t *obj, uint32_t address, uint8_t enable)
             irq_number = I2C1_IRQn;
             break;
 #endif
+#ifdef I2C2
+        case 2:
+            irq_number = I2C2_IRQn;
+            break;
+#endif
     }
 
     NVIC_SetVector(irq_number, address);
@@ -214,6 +231,13 @@ void i2c_frequency(i2c_t *obj, int hz)
 int i2c_start(i2c_t *obj)
 {
     I2C_TypeDef *i2c = obj->i2c.i2c;
+
+    /* Restore pin configuration in case we changed I2C object */
+#ifdef I2C_ROUTE_SDAPEN
+    obj->i2c.i2c->ROUTE = obj->i2c.location;
+#else
+    obj->i2c.i2c->ROUTELOC0 = obj->i2c.location;
+#endif
 
     /* Ensure buffers are empty */
     i2c->CMD = I2C_CMD_CLEARPC | I2C_CMD_CLEARTX;
@@ -292,6 +316,8 @@ int i2c_write(i2c_t *obj, int address, const char *data, int length, int stop)
 
 void i2c_reset(i2c_t *obj)
 {
+    i2c_enable_interrupt(obj, 0, false);
+    i2c_enable(obj, false);
     /* EMLib function */
     I2C_Reset(obj->i2c.i2c);
 }
@@ -356,6 +382,26 @@ int block_and_wait_for_ack(I2C_TypeDef *i2c)
     return 0; //Timeout
 }
 
+const PinMap *i2c_master_sda_pinmap()
+{
+    return PinMap_I2C_SDA;
+}
+
+const PinMap *i2c_master_scl_pinmap()
+{
+    return PinMap_I2C_SCL;
+}
+
+const PinMap *i2c_slave_sda_pinmap()
+{
+    return PinMap_I2C_SDA;
+}
+
+const PinMap *i2c_slave_scl_pinmap()
+{
+    return PinMap_I2C_SCL;
+}
+
 #if DEVICE_I2CSLAVE
 
 #define NoData          0
@@ -410,7 +456,6 @@ int i2c_slave_read(i2c_t *obj, char *data, int length)
         data[count] = i2c_byte_read(obj, 0);
     }
 
-
     return count;
 
 }
@@ -433,12 +478,11 @@ void i2c_slave_address(i2c_t *obj, int idx, uint32_t address, uint32_t mask)
 
 #endif //DEVICE_I2CSLAVE
 
-#ifdef DEVICE_I2C_ASYNCH
+#if DEVICE_I2C_ASYNCH
 
 #include "em_dma.h"
 #include "dma_api_HAL.h"
 #include "dma_api.h"
-#include "sleep_api.h"
 #include "buffer.h"
 
 /** Start i2c asynchronous transfer.
@@ -458,6 +502,12 @@ void i2c_transfer_asynch(i2c_t *obj, const void *tx, size_t tx_length, void *rx,
     if(i2c_active(obj)) return;
     if((tx_length == 0) && (rx_length == 0)) return;
     // For now, we are assuming a solely interrupt-driven implementation.
+
+#ifdef I2C_ROUTE_SDAPEN
+    obj->i2c.i2c->ROUTE = obj->i2c.location;
+#else
+    obj->i2c.i2c->ROUTELOC0 = obj->i2c.location;
+#endif
 
     // Store transfer config
     obj->i2c.xfer.addr = address;
@@ -493,18 +543,7 @@ void i2c_transfer_asynch(i2c_t *obj, const void *tx, size_t tx_length, void *rx,
     // Kick off the transfer
     retval = I2C_TransferInit(obj->i2c.i2c, &(obj->i2c.xfer));
 
-    if(retval == i2cTransferInProgress) {
-        blockSleepMode(EM1);
-    } else {
-        // something happened, and the transfer did not go through
-        // So, we need to clean up
-
-        // Disable interrupt
-        i2c_enable_interrupt(obj, 0, false);
-
-        // Block until free
-        while(i2c_active(obj));
-    }
+    MBED_ASSERT(retval == i2cTransferInProgress);
 }
 
 /** The asynchronous IRQ handler
@@ -527,23 +566,17 @@ uint32_t i2c_irq_handler_asynch(i2c_t *obj)
             // Disable interrupt
             i2c_enable_interrupt(obj, 0, false);
 
-            unblockSleepMode(EM1);
-
             return I2C_EVENT_TRANSFER_COMPLETE & obj->i2c.events;
         case i2cTransferNack:
             // A NACK has been received while an ACK was expected. This is usually because the slave did not respond to the address.
             // Disable interrupt
             i2c_enable_interrupt(obj, 0, false);
 
-            unblockSleepMode(EM1);
-
             return I2C_EVENT_ERROR_NO_SLAVE & obj->i2c.events;
         default:
             // An error situation has arisen.
             // Disable interrupt
             i2c_enable_interrupt(obj, 0, false);
-
-            unblockSleepMode(EM1);
 
             // return error
             return I2C_EVENT_ERROR & obj->i2c.events;
@@ -564,19 +597,17 @@ uint8_t i2c_active(i2c_t *obj)
  */
 void i2c_abort_asynch(i2c_t *obj)
 {
-    // Do not deactivate I2C twice
-    if (!i2c_active(obj)) return;
-
     // Disable interrupt
     i2c_enable_interrupt(obj, 0, false);
+
+    // Do not deactivate I2C twice
+    if (!i2c_active(obj)) return;
 
     // Abort
     obj->i2c.i2c->CMD = I2C_CMD_STOP | I2C_CMD_ABORT;
 
     // Block until free
     while(i2c_active(obj));
-
-    unblockSleepMode(EM1);
 }
 
 #endif //DEVICE_I2C ASYNCH

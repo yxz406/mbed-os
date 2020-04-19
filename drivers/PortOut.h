@@ -1,5 +1,6 @@
 /* mbed Microcontroller Library
- * Copyright (c) 2006-2013 ARM Limited
+ * Copyright (c) 2006-2019 ARM Limited
+ * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,17 +19,20 @@
 
 #include "platform/platform.h"
 
-#if DEVICE_PORTOUT
+#if DEVICE_PORTOUT || defined(DOXYGEN_ONLY)
 
 #include "hal/port_api.h"
-#include "platform/critical.h"
 
 namespace mbed {
-/** \addtogroup drivers */
-/** @{*/
-/** A multiple pin digital out
+/**
+ * \defgroup drivers_PortOut PortOut class
+ * \ingroup drivers-public-api-gpio
+ * @{
+ */
+
+/** A multiple pin digital output
  *
- * @Note Synchronization level: Interrupt safe
+ * @note Synchronization level: Interrupt safe
  *
  * Example:
  * @code
@@ -44,9 +48,9 @@ namespace mbed {
  * int main() {
  *     while(1) {
  *         ledport = LED_MASK;
- *         wait(1);
+ *         ThisThread::sleep_for(1000);
  *         ledport = 0;
- *         wait(1);
+ *         ThisThread::sleep_for(1000);
  *     }
  * }
  * @endcode
@@ -54,49 +58,55 @@ namespace mbed {
 class PortOut {
 public:
 
-    /** Create an PortOut, connected to the specified port
+    /** Create a PortOut, connected to the specified port
      *
-     *  @param port Port to connect to (Port0-Port5)
-     *  @param mask A bitmask to identify which bits in the port should be included (0 - ignore)
+     *  @param port Port to connect to (as defined in target's PortNames.h)
+     *  @param mask Bitmask defines which port pins are an output (0 - ignore, 1 - include)
      */
-    PortOut(PortName port, int mask = 0xFFFFFFFF) {
-        core_util_critical_section_enter();
-        port_init(&_port, port, mask, PIN_OUTPUT);
-        core_util_critical_section_exit();
-    }
+    PortOut(PortName port, int mask = 0xFFFFFFFF);
 
     /** Write the value to the output port
      *
      *  @param value An integer specifying a bit to write for every corresponding PortOut pin
      */
-    void write(int value) {
+    void write(int value)
+    {
         port_write(&_port, value);
     }
 
     /** Read the value currently output on the port
      *
      *  @returns
-     *    An integer with each bit corresponding to associated PortOut pin setting
+     *    An integer with each bit corresponding to associated pin value
      */
-    int read() {
+    int read()
+    {
         return port_read(&_port);
     }
 
     /** A shorthand for write()
+     * \sa PortOut::write()
      */
-    PortOut& operator= (int value) {
+    PortOut &operator= (int value)
+    {
         write(value);
         return *this;
     }
 
-    PortOut& operator= (PortOut& rhs) {
+    /** A shorthand for read()
+     * \sa PortOut::read()
+     */
+    PortOut &operator= (PortOut &rhs)
+    {
         write(rhs.read());
         return *this;
     }
 
     /** A shorthand for read()
+     * \sa PortOut::read()
      */
-    operator int() {
+    operator int()
+    {
         return read();
     }
 
@@ -104,10 +114,10 @@ private:
     port_t _port;
 };
 
+/** @}*/
+
 } // namespace mbed
 
 #endif
 
 #endif
-
-/** @}*/

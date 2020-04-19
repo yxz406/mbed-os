@@ -1,5 +1,6 @@
 /* mbed Microcontroller Library
  * Copyright (c) 2006-2013 ARM Limited
+ * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,23 +20,42 @@
 #include "platform/platform.h"
 #include "drivers/DigitalIn.h"
 #include "platform/PlatformMutex.h"
+#include "platform/NonCopyable.h"
 
 namespace mbed {
-/** \addtogroup drivers */
-/** @{*/
+/**
+ * \defgroup drivers_BusIn BusIn class
+ * \ingroup drivers-public-api-gpio
+ * @{
+ */
 
 /** A digital input bus, used for reading the state of a collection of pins
  *
- * @Note Synchronization level: Thread safe
+ * @note Synchronization level: Thread safe
  */
-class BusIn {
+class BusIn : private NonCopyable<BusIn> {
 
 public:
     /* Group: Configuration Methods */
 
     /** Create an BusIn, connected to the specified pins
      *
-     * @param <n> DigitalIn pin to connect to bus bit <n> (p5-p30, NC)
+     * @param p0 DigitalIn pin to connect to bus bit
+     * @param p1 DigitalIn pin to connect to bus bit
+     * @param p2 DigitalIn pin to connect to bus bit
+     * @param p3 DigitalIn pin to connect to bus bit
+     * @param p4 DigitalIn pin to connect to bus bit
+     * @param p5 DigitalIn pin to connect to bus bit
+     * @param p6 DigitalIn pin to connect to bus bit
+     * @param p7 DigitalIn pin to connect to bus bit
+     * @param p8 DigitalIn pin to connect to bus bit
+     * @param p9 DigitalIn pin to connect to bus bit
+     * @param p10 DigitalIn pin to connect to bus bit
+     * @param p11 DigitalIn pin to connect to bus bit
+     * @param p12 DigitalIn pin to connect to bus bit
+     * @param p13 DigitalIn pin to connect to bus bit
+     * @param p14 DigitalIn pin to connect to bus bit
+     * @param p15 DigitalIn pin to connect to bus bit
      *
      * @note
      *  It is only required to specify as many pin variables as is required
@@ -46,6 +66,11 @@ public:
           PinName p8 = NC, PinName p9 = NC, PinName p10 = NC, PinName p11 = NC,
           PinName p12 = NC, PinName p13 = NC, PinName p14 = NC, PinName p15 = NC);
 
+
+    /** Create an BusIn, connected to the specified pins
+     *
+     * @param pins An array of pins to connect to bus bit
+     */
     BusIn(PinName pins[16]);
 
     virtual ~BusIn();
@@ -59,7 +84,7 @@ public:
 
     /** Set the input pin mode
      *
-     *  @param mode PullUp, PullDown, PullNone
+     *  @param pull PullUp, PullDown, PullNone
      */
     void mode(PinMode pull);
 
@@ -69,23 +94,27 @@ public:
      *  @returns
      *    Binary mask of connected pins
      */
-    int mask() {
+    int mask()
+    {
         // No lock needed since _nc_mask is not modified outside the constructor
         return _nc_mask;
     }
 
     /** A shorthand for read()
+     *  \sa DigitalIn::read()
      */
     operator int();
 
     /** Access to particular bit in random-iterator fashion
+     * @param index  Position of bit
      */
-    DigitalIn & operator[] (int index);
+    DigitalIn &operator[](int index);
 
+#if !defined(DOXYGEN_ONLY)
 protected:
-    DigitalIn* _pin[16];
+    DigitalIn *_pin[16];
 
-    /** Mask of bus's NC pins
+    /* Mask of bus's NC pins
      * If bit[n] is set to 1 - pin is connected
      * if bit[n] is cleared - pin is not connected (NC)
      */
@@ -93,16 +122,15 @@ protected:
 
     PlatformMutex _mutex;
 
-    /* disallow copy constructor and assignment operators */
 private:
     virtual void lock();
     virtual void unlock();
-    BusIn(const BusIn&);
-    BusIn & operator = (const BusIn&);
+#endif
 };
+
+/** @}*/
 
 } // namespace mbed
 
 #endif
 
-/** @}*/

@@ -25,8 +25,7 @@
  *  Class that represents a WiFi Access Point
  *  Common interface that is shared between WiFi devices
  */
-class WiFiAccessPoint
-{
+class WiFiAccessPoint {
     /** WiFiAccessPoint lifetime
      */
 public:
@@ -65,7 +64,7 @@ public:
     uint8_t get_channel() const;
 
 private:
-    nsapi_wifi_ap_t _ap;
+    nsapi_wifi_ap_t _ap {};
 };
 
 #endif

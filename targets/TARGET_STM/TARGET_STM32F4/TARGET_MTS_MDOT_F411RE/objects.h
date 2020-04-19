@@ -54,14 +54,7 @@ struct port_s {
     __IO uint32_t *reg_out;
 };
 
-struct analogin_s {
-    ADCName adc;
-    PinName pin;
-    uint8_t channel;
-};
-
 #include "common_objects.h"
-#include "gpio_object.h"
 
 #ifdef __cplusplus
 }

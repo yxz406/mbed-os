@@ -2,8 +2,8 @@
   ******************************************************************************
   * @file    stm32f2xx_hal_eth.c
   * @author  MCD Application Team
-  * @version V1.1.3
-  * @date    29-June-2016
+  * @version V1.2.1
+  * @date    14-April-2017
   * @brief   ETH HAL module driver.
   *          This file provides firmware functions to manage the following 
   *          functionalities of the Ethernet (ETH) peripheral:
@@ -68,7 +68,7 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT(c) 2016 STMicroelectronics</center></h2>
+  * <h2><center>&copy; COPYRIGHT(c) 2017 STMicroelectronics</center></h2>
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -116,9 +116,9 @@
 /** @defgroup ETH_Private_Constants ETH Private Constants
   * @{
   */
-#define ETH_TIMEOUT_SWRESET                 ((uint32_t)500U)  
-#define ETH_TIMEOUT_LINKED_STATE           ((uint32_t)5000U)  
-#define ETH_TIMEOUT_AUTONEGO_COMPLETED     ((uint32_t)5000U)
+#define ETH_TIMEOUT_SWRESET                500U  
+#define ETH_TIMEOUT_LINKED_STATE           5000U  
+#define ETH_TIMEOUT_AUTONEGO_COMPLETED     5000U
 
 /**
   * @}
@@ -573,7 +573,7 @@ HAL_StatusTypeDef HAL_ETH_DMARxDescListInit(ETH_HandleTypeDef *heth, ETH_DMADesc
     if(i < (RxBuffCount-1U))
     {
       /* Set next descriptor address register with next descriptor base address */
-      DMARxDesc->Buffer2NextDescAddr = (uint32_t)(DMARxDescTab+i+1); 
+      DMARxDesc->Buffer2NextDescAddr = (uint32_t)(DMARxDescTab+i+1U);
     }
     else
     {
@@ -663,9 +663,6 @@ HAL_StatusTypeDef HAL_ETH_TransmitFrame(ETH_HandleTypeDef *heth, uint32_t FrameL
 {
   uint32_t bufcount = 0U, size = 0U, i = 0U;
   
-  /* Process Locked */
-  __HAL_LOCK(heth);
-  
   /* Set the ETH peripheral state to BUSY */
   heth->State = HAL_ETH_STATE_BUSY;
   
@@ -673,9 +670,6 @@ HAL_StatusTypeDef HAL_ETH_TransmitFrame(ETH_HandleTypeDef *heth, uint32_t FrameL
   {
     /* Set ETH HAL state to READY */
     heth->State = HAL_ETH_STATE_READY;
-    
-    /* Process Unlocked */
-    __HAL_UNLOCK(heth);
     
     return  HAL_ERROR;                                    
   }  
@@ -685,9 +679,6 @@ HAL_StatusTypeDef HAL_ETH_TransmitFrame(ETH_HandleTypeDef *heth, uint32_t FrameL
   {  
     /* OWN bit set */
     heth->State = HAL_ETH_STATE_BUSY_TX;
-    
-    /* Process Unlocked */
-    __HAL_UNLOCK(heth);
     
     return HAL_ERROR;
   }
@@ -759,9 +750,6 @@ HAL_StatusTypeDef HAL_ETH_TransmitFrame(ETH_HandleTypeDef *heth, uint32_t FrameL
   /* Set ETH HAL State to Ready */
   heth->State = HAL_ETH_STATE_READY;
   
-  /* Process Unlocked */
-  __HAL_UNLOCK(heth);
-  
   /* Return function status */
   return HAL_OK;
 }
@@ -775,9 +763,6 @@ HAL_StatusTypeDef HAL_ETH_TransmitFrame(ETH_HandleTypeDef *heth, uint32_t FrameL
 HAL_StatusTypeDef HAL_ETH_GetReceivedFrame(ETH_HandleTypeDef *heth)
 {
   uint32_t framelength = 0U;
-  
-  /* Process Locked */
-  __HAL_LOCK(heth);
   
   /* Check the ETH state to BUSY */
   heth->State = HAL_ETH_STATE_BUSY;
@@ -812,9 +797,6 @@ HAL_StatusTypeDef HAL_ETH_GetReceivedFrame(ETH_HandleTypeDef *heth)
       /* Set HAL State to Ready */
       heth->State = HAL_ETH_STATE_READY;
       
-      /* Process Unlocked */
-      __HAL_UNLOCK(heth);
-      
       /* Return function status */
       return HAL_OK;
     }
@@ -839,9 +821,6 @@ HAL_StatusTypeDef HAL_ETH_GetReceivedFrame(ETH_HandleTypeDef *heth)
   /* Set ETH HAL State to Ready */
   heth->State = HAL_ETH_STATE_READY;
   
-  /* Process Unlocked */
-  __HAL_UNLOCK(heth);
-  
   /* Return function status */
   return HAL_ERROR;
 }
@@ -855,9 +834,6 @@ HAL_StatusTypeDef HAL_ETH_GetReceivedFrame(ETH_HandleTypeDef *heth)
 HAL_StatusTypeDef HAL_ETH_GetReceivedFrame_IT(ETH_HandleTypeDef *heth)
 {
   uint32_t descriptorscancounter = 0U;
-  
-  /* Process Locked */
-  __HAL_LOCK(heth);
   
   /* Set ETH HAL State to BUSY */
   heth->State = HAL_ETH_STATE_BUSY;
@@ -913,9 +889,6 @@ HAL_StatusTypeDef HAL_ETH_GetReceivedFrame_IT(ETH_HandleTypeDef *heth)
       /* Set HAL State to Ready */
       heth->State = HAL_ETH_STATE_READY;
       
-      /* Process Unlocked */
-      __HAL_UNLOCK(heth);
-  
       /* Return function status */
       return HAL_OK;
     }
@@ -923,9 +896,6 @@ HAL_StatusTypeDef HAL_ETH_GetReceivedFrame_IT(ETH_HandleTypeDef *heth)
 
   /* Set HAL State to Ready */
   heth->State = HAL_ETH_STATE_READY;
-  
-  /* Process Unlocked */
-  __HAL_UNLOCK(heth);
   
   /* Return function status */
   return HAL_ERROR;
@@ -1427,7 +1397,7 @@ HAL_StatusTypeDef HAL_ETH_ConfigMAC(ETH_HandleTypeDef *heth, ETH_MACInitTypeDef 
     tmpreg1 = (heth->Instance)->MACCR;
     
     /* Clear FES and DM bits */
-    tmpreg1 &= ~((uint32_t)0x00004800U);
+    tmpreg1 &= ~(0x00004800U);
     
     tmpreg1 |= (uint32_t)(heth->Init.Speed | heth->Init.DuplexMode);
     
@@ -1856,7 +1826,10 @@ static void ETH_MACDMAConfig(ETH_HandleTypeDef *heth, uint32_t err)
 static void ETH_MACAddressConfig(ETH_HandleTypeDef *heth, uint32_t MacAddr, uint8_t *Addr)
 {
   uint32_t tmpreg1;
-  
+
+  /* Prevent unused argument(s) compilation warning */
+  UNUSED(heth);
+
   /* Check the parameters */
   assert_param(IS_ETH_MAC_ADDRESS0123(MacAddr));
   
